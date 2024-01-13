@@ -3,8 +3,8 @@ use ggez::event::{self, EventHandler};
 use ggez::graphics::{self, Color, DrawParam};
 use ggez::{glam, Context, ContextBuilder, GameResult};
 
-mod visualizable_robot;
-mod visualizable_interfaces;
+pub mod visualizable_robot;
+pub mod visualizable_interfaces;
 mod dtos;
 pub mod visualizer;
 
