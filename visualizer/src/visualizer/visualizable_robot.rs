@@ -1,20 +1,18 @@
 use std::sync::mpsc::Sender;
 
 use oxagaudiotool::OxAgAudioTool;
-use robotics_lib::{runner::Runnable, interface::debug, event::events::Event as RobotEvent};
+use robotics_lib::{runner::Runnable, interface::debug, event::events::Event as RobotEvent, world::tile::Tile};
 
 use crate::audio::get_configured_audio_tool;
 
-use super::dtos::{ChannelItem, WorldMap};
-
-pub struct VisualizableRobot {
+pub(crate) struct VisualizableRobot {
     real_robot: Box<dyn Runnable>,
     audio_tool: OxAgAudioTool,
-    sender: Sender<ChannelItem>,
+    sender: Sender<RobotChannelItem>,
 }
 
 impl VisualizableRobot {
-    pub fn new(real_robot: Box<dyn Runnable>, sender: Sender<ChannelItem>) -> VisualizableRobot {
+    pub(crate) fn new(real_robot: Box<dyn Runnable>, sender: Sender<RobotChannelItem>) -> VisualizableRobot {
         VisualizableRobot {
             real_robot: real_robot,
             audio_tool: VisualizableRobot::get_configured_audio_tool(),
@@ -82,10 +80,32 @@ impl VisualizableRobot {
         // println!("{:?}", map);
         // println!("ROBOT SENDING {:?}", (robot_x, robot_y));
         let world_state = WorldMap::new(map, (robot_x, robot_y));
-        self.sender.send(ChannelItem::Map(world_state)).expect("Sending state from robot to visualizer failed");
+        self.sender.send(RobotChannelItem::Map(world_state)).expect("Sending state from robot to visualizer failed");
     }
 
     fn send_event(&self, event: &RobotEvent) {
 
+    }
+}
+
+// /// Coordinate struct from robotic-lib does not allow for its instances to be created
+struct Coord {
+    x: usize, 
+    y: usize
+}
+
+pub(crate) enum RobotChannelItem {
+    RobotEventItem(RobotEvent),
+    Map(WorldMap)
+}
+
+pub(crate) struct WorldMap {
+    world_map: Vec<Vec<Tile>>,
+    robot_position: Coord
+}
+
+impl WorldMap {
+    pub(crate) fn new(world_map: Vec<Vec<Tile>>, (robot_x, roboy_y): (usize, usize)) -> WorldMap {
+        WorldMap { world_map: world_map, robot_position: Coord { x: robot_x, y: roboy_y } }
     }
 }

@@ -5,7 +5,6 @@ use ggez::{glam, Context, ContextBuilder, GameResult};
 
 pub mod visualizable_robot;
 pub mod visualizable_interfaces;
-mod dtos;
 pub mod visualizer;
 
 pub fn try_ggeui() {
