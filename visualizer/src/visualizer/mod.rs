@@ -6,6 +6,7 @@ use ggez::{glam, Context, ContextBuilder, GameResult};
 mod visualizable_robot;
 mod visualizable_interfaces;
 mod dtos;
+pub mod visualizer;
 
 pub fn try_ggeui() {
 	let (mut ctx, event_loop) = ContextBuilder::new("game_id", "author").build().unwrap();

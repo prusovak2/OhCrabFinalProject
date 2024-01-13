@@ -1,13 +1,13 @@
 use std::sync::mpsc::Sender;
 
 use oxagaudiotool::OxAgAudioTool;
-use robotics_lib::{runner::Runnable, interface::debug};
+use robotics_lib::{runner::Runnable, interface::debug, event::events::Event as RobotEvent};
 
 use crate::audio::get_configured_audio_tool;
 
 use super::dtos::{ChannelItem, WorldMap};
 
-struct VisualizableRobot {
+pub struct VisualizableRobot {
     real_robot: Box<dyn Runnable>,
     audio_tool: OxAgAudioTool,
     sender: Sender<ChannelItem>,
@@ -15,7 +15,6 @@ struct VisualizableRobot {
 
 impl VisualizableRobot {
     pub fn new(real_robot: Box<dyn Runnable>, sender: Sender<ChannelItem>) -> VisualizableRobot {
-
         VisualizableRobot {
             real_robot: real_robot,
             audio_tool: VisualizableRobot::get_configured_audio_tool(),
@@ -30,7 +29,8 @@ impl Runnable for VisualizableRobot {
         self.real_robot.process_tick(world)
     }
 
-    fn handle_event(&mut self, event: robotics_lib::event::events::Event) {
+    fn handle_event(&mut self, event: RobotEvent) {
+        self.send_event(&event);
         self.play_audio_based_on_event(&event);
         self.real_robot.handle_event(event)
     }
@@ -61,7 +61,7 @@ impl Runnable for VisualizableRobot {
 }
 
 impl VisualizableRobot {
-    fn play_audio_based_on_event(&mut self, event: &robotics_lib::event::events::Event) {
+    fn play_audio_based_on_event(&mut self, event: &RobotEvent) {
         let audio_res = self.audio_tool.play_audio_based_on_event(&event);
         match audio_res {
             Ok(_) => {},
@@ -83,5 +83,9 @@ impl VisualizableRobot {
         // println!("ROBOT SENDING {:?}", (robot_x, robot_y));
         let world_state = WorldMap::new(map, (robot_x, robot_y));
         self.sender.send(ChannelItem::Map(world_state)).expect("Sending state from robot to visualizer failed");
+    }
+
+    fn send_event(&self, event: &RobotEvent) {
+
     }
 }
