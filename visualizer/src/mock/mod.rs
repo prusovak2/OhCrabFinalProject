@@ -53,7 +53,7 @@ pub fn test_runner_main_loop() {
 
     let robot = MockRobot::new(sender);
 
-    let runner = Runner::new(Box::new(robot), &mut generator).unwrap();
+    let runner: Runner = Runner::new(Box::new(robot), &mut generator).unwrap();
 
     let mock_visualizer = MockVisualizer::new(runner, receiver, NUM_TICKS, 500);
 

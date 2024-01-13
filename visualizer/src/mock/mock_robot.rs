@@ -109,3 +109,13 @@ impl Runnable for MockRobot {
         &mut self.properties.backpack
     }
 }
+
+const DESTROY_VEC : [&str;9] = ["Can i catch you? You look like an exception",
+"Baby, if they made you in java you'd be the object of my desire",
+"Are you a borrow checker? Because you are making sure there is no ownership conflicts in my heart",
+"Are you a wrecking ball? Because you just knocked down all my defenses",
+"Are you a demolition expert? Because you just demolished the walls around my heart",
+"Did you play Jenga as a kid? Because you just pulled out the last piece, and now I'm falling for you",
+"Are you a superhero? Because you just crashed through the walls of my ordinary life",
+"Is your name Dynamite? Because you've just blasted your way into my heart",
+"Are you a supernova? Because you just exploded into my universe, and now everything revolves around you"];
