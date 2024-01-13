@@ -2,6 +2,7 @@
     "rust-analyzer.linkedProjects": [
         ".\\visualizer\\Cargo.toml",
         ".\\visualizer\\Cargo.toml",
+        ".\\visualizer\\Cargo.toml",
         ".\\visualizer\\Cargo.toml"
     ]
 }

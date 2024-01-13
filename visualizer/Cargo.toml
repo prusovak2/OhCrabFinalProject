@@ -9,8 +9,10 @@ edition = "2021"
 robotics_lib = { version = "0.1.21", registry = "kellnr" }
 oxagaudiotool = { version = "0.2.0", registry = "kellnr" }
 oxagworldgenerator = { version = "0.1.2",  registry = "kellnr"}
-rizzler_rust_and_furious = { version = "0.1.0", registry = "kellnr"}
+rizzler_rust_and_furious = { version = "0.1.5", registry = "kellnr"}
 rstykrab_cache = { version ="0.1.0", registry = "kellnr"}
+ggegui = "0.3.8"
+
 ggez = "0.9.3"
 rand = "0.8"
 strum = "0.25.0"
