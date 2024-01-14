@@ -5,6 +5,8 @@ use robotics_lib::{runner::Runnable, interface::debug, event::events::Event as R
 
 use crate::audio::get_configured_audio_tool;
 
+use super::Coord;
+
 pub(crate) struct VisualizableRobot {
     real_robot: Box<dyn Runnable>,
     audio_tool: OxAgAudioTool,
@@ -88,11 +90,6 @@ impl VisualizableRobot {
     }
 }
 
-// /// Coordinate struct from robotic-lib does not allow for its instances to be created
-struct Coord {
-    x: usize, 
-    y: usize
-}
 
 pub(crate) enum RobotChannelItem {
     RobotEventItem(RobotEvent),

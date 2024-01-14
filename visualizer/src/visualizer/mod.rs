@@ -7,6 +7,18 @@ pub mod visualizable_robot;
 pub mod visualizable_interfaces;
 pub mod visualizer;
 
+// /// Coordinate struct from robotic-lib does not allow for its instances to be created
+pub(crate) struct Coord {
+    pub x: usize, 
+    pub y: usize
+}
+
+impl Coord {
+    pub(crate) fn new(x: usize, y: usize) -> Coord {
+        Coord { x: x, y: y }
+    }
+}
+
 pub fn try_ggeui() {
 	let (mut ctx, event_loop) = ContextBuilder::new("game_id", "author").build().unwrap();
 	let state = State::new(&mut ctx);
