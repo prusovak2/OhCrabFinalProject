@@ -2,11 +2,11 @@ use std::sync::mpsc::Sender;
 
 use oxagaudiotool::OxAgAudioTool;
 use robotics_lib::event::events::Event as RobotEvent;
+use rstykrab_cache::Action;
 
 use crate::audio::get_configured_audio_tool;
 
-use super::visualizable_interfaces::InterfaceChannelItem;
-
+use super::Coord;
 
 // trait RunnableVisualizable<'a>: Runnable + Visalizable<'a> {
 // }
@@ -16,21 +16,37 @@ pub trait Visalizable<'a> {
 }
 
 #[derive(Debug)]
-pub(crate) struct EventChannelItem {
-    pub(crate) event:RobotEvent,
+pub(crate) enum ChannelItem {
+    EventChannelItem(RobotEvent),
+    InterfaceChannelItem(InterfaceInvocation)
+}
+
+#[derive(Debug)]
+pub(crate) struct InterfaceInvocation{
+    interface_action: Action,
+    robot_position: Coord,
+    riz_message: Option<String>
+}
+
+impl InterfaceInvocation {
+    pub(crate) fn new(interface_action: Action, robot_position: Coord, riz_message: Option<String>) -> InterfaceInvocation {
+        InterfaceInvocation {
+            interface_action, 
+            robot_position,
+            riz_message
+        }
+    }
 }
 
 pub struct VisualizerEventListener{
-    pub(crate) interface_sender: Sender<InterfaceChannelItem>,
-    event_sender: Sender<EventChannelItem>,
+    pub(crate) sender: Sender<ChannelItem>,
     audio_tool: Option<OxAgAudioTool>,
 }
 
 impl VisualizerEventListener {
-    pub(crate) fn new(interface_sender: Sender<InterfaceChannelItem>, event_sender: Sender<EventChannelItem>, use_sound: bool) -> VisualizerEventListener {
+    pub(crate) fn new(sender: Sender<ChannelItem>, use_sound: bool) -> VisualizerEventListener {
         VisualizerEventListener{
-            interface_sender, 
-            event_sender, 
+            sender,
             audio_tool: if use_sound { Some(VisualizerEventListener::get_configured_audio_tool())} else {None},
         }
     }
@@ -42,8 +58,8 @@ impl VisualizerEventListener {
 
     fn send_event(&self, event: RobotEvent) {
         println!("DATA SENDER sending event: {:?}", event);
-        let channel_item = EventChannelItem{event:event.clone()};
-        self.event_sender.send(channel_item).expect(&format!("VisualizerDataSender: sending event {} failed.", event));
+        let channel_item = ChannelItem::EventChannelItem(event.clone());
+        self.sender.send(channel_item).expect(&format!("VisualizerDataSender: sending event {} failed.", event));
     }
 
     fn play_audio_based_on_event(&mut self, event: &RobotEvent) {

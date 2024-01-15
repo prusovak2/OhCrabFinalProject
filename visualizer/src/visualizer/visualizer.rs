@@ -1,4 +1,4 @@
-use std::{sync::mpsc::{Receiver, self}, collections::HashMap, f64::consts::E};
+use std::{sync::mpsc::{Receiver, self}, collections::HashMap};
 
 use ggez::{event::{EventHandler, self}, timer, graphics::{self, Color}, GameError};
 use oxagworldgenerator::world_generator::OxAgWorldGenerator;
@@ -7,13 +7,12 @@ use rstykrab_cache::Cache;
 
 use crate::visualizer::draw_utils;
 
-use super::{visualizable_robot::{VisualizableRobot, RobotCreator, MapChannelItem}, visualizable_interfaces::InterfaceChannelItem, Coord, visualizer_event_listener::{EventChannelItem, VisualizerEventListener}};
+use super::{visualizable_robot::{VisualizableRobot, RobotCreator, MapChannelItem}, Coord, visualizer_event_listener::{VisualizerEventListener, ChannelItem}};
 
 pub struct OhCrabVisualizer {
     runner: Runner,
-    robot_event_receiver: Receiver<EventChannelItem>,
-    robot_map_receiver: Receiver<MapChannelItem>,
-    interface_receiver: Receiver<InterfaceChannelItem>,
+    robot_receiver: Receiver<ChannelItem>,
+    map_receiver: Receiver<MapChannelItem>,
     action_cache: Cache,
 
     // configuration
@@ -75,11 +74,10 @@ impl OhCrabVisualizerConfig {
 
 impl OhCrabVisualizer {
     pub fn new(robot_creator: impl RobotCreator, mut world_generator: OxAgWorldGenerator, config: OhCrabVisualizerConfig) -> OhCrabVisualizer {
-        let (interface_sender, interface_receiver) = mpsc::channel::<InterfaceChannelItem>();
-        let (event_sender, event_receiver) = mpsc::channel::<EventChannelItem>();
+        let (robot_sender, robot_receiver) = mpsc::channel::<ChannelItem>();
         let (map_sender, map_receiver) = mpsc::channel::<MapChannelItem>();
 
-        let mut visualizer_data_sender = VisualizerEventListener::new(interface_sender, event_sender, config.use_sound);
+        let mut visualizer_data_sender = VisualizerEventListener::new(robot_sender, config.use_sound);
         let robot = robot_creator.create(visualizer_data_sender);
         let visualizable_robot = VisualizableRobot::new(robot, map_sender);
 
@@ -87,9 +85,8 @@ impl OhCrabVisualizer {
 
         OhCrabVisualizer {
             runner: runner,
-            robot_event_receiver: event_receiver,
-            robot_map_receiver: map_receiver,
-            interface_receiver, 
+            robot_receiver: robot_receiver,
+            map_receiver,
             action_cache: Cache::new(10),
             interactive_mode: config.interactive_mode,
             total_ticks:  config.num_ticks,
@@ -135,7 +132,7 @@ impl OhCrabVisualizer {
     fn init_state(&mut self)  -> Result<(), OhCrabVisualizerError> {
         println!("VISUALIZER UPDATE, doing first world tick.");
         self.do_world_tick()?;
-        let received_map = self.robot_map_receiver.try_recv();
+        let received_map = self.map_receiver.try_recv();
         match received_map {
             Ok(map_item) => {
                 println!("VISUALIZER RECEIVED MAP with robot position {:?}", (map_item.map.robot_position.x, map_item.map.robot_position.y));
@@ -161,47 +158,59 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
         }
 
         println!("VISUALIZER UPDATE, receiving from robot channel.");
-        let received_state = self.robot_event_receiver.try_recv();
+        let received_state = self.robot_receiver.try_recv();
 
         match received_state {
             Ok(channel_item) => {
                 println!("VISUALIZER UPDATE, received item {:?}.", channel_item);
                 timer::sleep(std::time::Duration::from_millis(self.delay_in_milis)); // TODO: why is this sleep there and not somewhere else?
-                match  channel_item.event {
-                    // RobotEvent::Ready => todo!(),
-                    // RobotEvent::Terminated => todo!(),
-                    // RobotEvent::TimeChanged(_) => todo!(),
-                    // RobotEvent::DayChanged(_) => todo!(),
-                    // RobotEvent::EnergyRecharged(_) => todo!(),
-                    // RobotEvent::EnergyConsumed(_) => todo!(),
-                    RobotEvent::Moved(_, (robot_y, robot_x)) => { // BEWARE: library has x and y switched in Move event
-                        println!("VISUALIZER: received robot moved {:?}", (robot_x, robot_y));
-                        self.world_state.robot_position = Some(Coord{x:robot_x, y:robot_y });
-                        Ok(())
-                    }
-                    RobotEvent::TileContentUpdated(tile, (tile_x, tile_y)) => {
-                        println!("VISUALIZER: received tile content update.");
-                        if let Some(world_map) = &mut self.world_state.world_map{
-                            world_map[tile_y][tile_x] = tile;
+                match  channel_item {
+                    ChannelItem::EventChannelItem(event) => {
+                        match event {
+                            // RobotEvent::Ready => todo!(),
+                            // RobotEvent::Terminated => todo!(),
+                            // RobotEvent::TimeChanged(_) => todo!(),
+                            // RobotEvent::DayChanged(_) => todo!(),
+                            // RobotEvent::EnergyRecharged(_) => todo!(),
+                            // RobotEvent::EnergyConsumed(_) => todo!(),
+                            RobotEvent::Moved(_, (robot_y, robot_x)) => { // BEWARE: library has x and y switched in Move event
+                                println!("VISUALIZER: received robot moved {:?}", (robot_x, robot_y));
+                                self.world_state.robot_position = Some(Coord{x:robot_x, y:robot_y });
+                                Ok(())
+                            }
+                            RobotEvent::TileContentUpdated(tile, (tile_y, tile_x)) => {
+                                println!("VISUALIZER: received tile content update.");
+                                if let Some(world_map) = &mut self.world_state.world_map{
+                                    world_map[tile_y][tile_x] = tile;
+                                }
+                                Ok(())
+                            }
+                            RobotEvent::AddedToBackpack(content, amount) => {
+                                println!("VISUALIZER: added to backpack.");
+                                *self.world_state.backpack.entry(content).or_insert(0) += amount;
+                                Ok(())
+                            }
+                            // RobotEvent::RemovedFromBackpack(_, _) => todo!(),
+                            _ => {
+                                println!("VISUALIZER: {:?}", event);
+                                Ok(())
+                            }
                         }
+                    }
+                    ChannelItem::InterfaceChannelItem(interface_invocation) => {
+                        println!();
+                        println!("VISULAZER: received interface invocation: {:?}", interface_invocation);
                         Ok(())
                     }
-                    RobotEvent::AddedToBackpack(content, amount) => {
-                        println!("VISUALIZER: added to backpack.");
-                        *self.world_state.backpack.entry(content).or_insert(0) += amount;
-                        Ok(())
-                    }
-                    // RobotEvent::RemovedFromBackpack(_, _) => todo!(),
-                    _ => Ok(())
                 }
             }
-            Err(std::sync::mpsc::TryRecvError::Empty) => {
-                println!("VISUALIZER: channel empty, execution another world tick.");
-                self.do_world_tick()
-            }
-            Err(error) => {
-                println!("VISUALIZER: try receive error: {:?}.", error);
-                Err(OhCrabVisualizerError::DataError(DataChannelError::TryRecvError(error)))
+        Err(std::sync::mpsc::TryRecvError::Empty) => {
+            println!("VISUALIZER: channel empty, execution another world tick.");
+            self.do_world_tick()
+        }
+        Err(error) => {
+            println!("VISUALIZER: try receive error: {:?}.", error);
+            Err(OhCrabVisualizerError::DataError(DataChannelError::TryRecvError(error)))
             }
         }
     }

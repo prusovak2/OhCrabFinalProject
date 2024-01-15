@@ -11,5 +11,8 @@ pub fn example(){
     let mut visualizer = OhCrabVisualizer::new(robot_factory, world_generator, config);
     
     //visualizer.simulate().unwrap();
-    visualizer.run().unwrap()
+    match visualizer.run() {
+        Ok(_) => {}
+        Err(err) => println!("Visualizer run returned error {:?}", err),
+    } 
 }

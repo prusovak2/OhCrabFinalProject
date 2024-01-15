@@ -1,4 +1,6 @@
-use robotics_lib::{runner::{Robot, Runnable}, interface::Direction};
+use OhCrab_collection::collection::CollectTool;
+use ggez::error;
+use robotics_lib::{runner::{Robot, Runnable}, interface::Direction, world::tile::Content};
 
 use crate::visualizer::{visualizable_interfaces::VisualizableInterfaces, visualizable_robot::RobotCreator, visualizer_event_listener::{VisualizerEventListener, Visalizable}};
 
@@ -64,7 +66,12 @@ impl Runnable for ExampleRobot {
                 self.change_direction();
                 println!("Example robot: changing direction: {:?}", self.get_direction())
             }
-        } 
+        }
+
+        match CollectTool::collect_instantly_reachable(self, world, &Content::JollyBlock(0)){
+            Ok(_) => {}
+            Err(error) => println!("Example robot: collect error {:?}", error)
+        }
     }
 
     fn handle_event(&mut self, event: robotics_lib::event::events::Event) {

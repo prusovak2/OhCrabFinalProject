@@ -4,23 +4,7 @@ use rizzler_rust_and_furious::rizzler::Rizzler;
 use robotics_lib::{interface::{Direction, where_am_i, go, get_score, one_direction_view, robot_map, robot_view}, runner::Runnable, world::{tile::{Content, Tile}, World, environmental_conditions::EnvironmentalConditions}, utils::LibError};
 use rstykrab_cache::Action; 
 
-use super::{Coord, visualizer_event_listener::Visalizable};
-
-pub(crate) struct InterfaceChannelItem{
-    interface_action: Action,
-    robot_position: Coord,
-    riz_message: Option<String>
-}
-
-impl InterfaceChannelItem {
-    fn new(interface_action: Action, robot_position: Coord, riz_message: Option<String>) -> InterfaceChannelItem {
-        InterfaceChannelItem {
-            interface_action, 
-            robot_position,
-            riz_message
-        }
-    }
-}
+use super::{Coord, visualizer_event_listener::{Visalizable, ChannelItem, InterfaceInvocation}};
 
 pub struct VisualizableInterfaces {
 }
@@ -28,8 +12,8 @@ pub struct VisualizableInterfaces {
 impl VisualizableInterfaces {
     fn send_action<'a>(action:Action, robot: &'a(impl Runnable + Visalizable<'a>), world: &World, riz_message: Option<String>) {
         let (_, (x,y)) = where_am_i(robot, world);
-        let channel_item = InterfaceChannelItem::new(action, Coord::new(x, y), riz_message);
-        robot.borrow_interface_sender().interface_sender.send(channel_item).expect("VisualizableInterfaces: sending action failed.");
+        let channel_item = ChannelItem::InterfaceChannelItem(InterfaceInvocation::new(action, Coord::new(x, y), riz_message));
+        robot.borrow_interface_sender().sender.send(channel_item).expect("VisualizableInterfaces: sending action failed.");
     }
 
     /// Given a content to craft, will attempt to craft it from the contents already present in the backpack
