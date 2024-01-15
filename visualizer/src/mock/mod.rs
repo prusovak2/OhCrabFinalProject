@@ -4,19 +4,12 @@ pub mod mock_world_generator;
 
 use std::collections::HashMap;
 use std::sync::mpsc;
-use std::time::Instant;
-
 use ggez::event;
-use oxagworldgenerator::world_generator::OxAgWorldGenerator;
-use oxagworldgenerator::world_generator::world_generator_builder::OxAgWorldGeneratorBuilder;
 use robotics_lib::runner::Runner;
 use mock_world_generator::MockWorldGenerator;
 use mock_robot::MockRobot;
 use robotics_lib::world::tile::Content;
 use robotics_lib::world::tile::TileType;
-use robotics_lib::world::world_generator::Generator;
-
-
 use self::mock_visualizer::ChannelItem;
 use self::mock_visualizer::MockVisualizer;
 

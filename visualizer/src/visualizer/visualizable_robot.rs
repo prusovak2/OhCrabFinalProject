@@ -1,5 +1,4 @@
 use std::sync::mpsc::Sender;
-
 use oxagaudiotool::OxAgAudioTool;
 use robotics_lib::{runner::Runnable, interface::debug, event::events::Event as RobotEvent, world::tile::Tile};
 
@@ -9,15 +8,15 @@ use super::Coord;
 
 pub(crate) struct VisualizableRobot {
     real_robot: Box<dyn Runnable>,
-    audio_tool: OxAgAudioTool,
+    audio_tool: Option<OxAgAudioTool>,
     sender: Sender<RobotChannelItem>,
 }
 
 impl VisualizableRobot {
-    pub(crate) fn new(real_robot: Box<dyn Runnable>, sender: Sender<RobotChannelItem>) -> VisualizableRobot {
+    pub(crate) fn new(real_robot: Box<dyn Runnable>, sender: Sender<RobotChannelItem>, use_sound: bool) -> VisualizableRobot {
         VisualizableRobot {
             real_robot: real_robot,
-            audio_tool: VisualizableRobot::get_configured_audio_tool(),
+            audio_tool: if use_sound { Some(VisualizableRobot::get_configured_audio_tool())} else {None},
             sender: sender
         }
     }
@@ -30,7 +29,7 @@ impl Runnable for VisualizableRobot {
     }
 
     fn handle_event(&mut self, event: RobotEvent) {
-        self.send_event(&event);
+        self.send_event(event.clone());
         self.play_audio_based_on_event(&event);
         self.real_robot.handle_event(event)
     }
@@ -62,10 +61,12 @@ impl Runnable for VisualizableRobot {
 
 impl VisualizableRobot {
     fn play_audio_based_on_event(&mut self, event: &RobotEvent) {
-        let audio_res = self.audio_tool.play_audio_based_on_event(&event);
-        match audio_res {
-            Ok(_) => {},
-            Err(err) => println!("Audio tool error: {}", err),
+        if let Some(audio_tool) = &mut self.audio_tool {
+            let audio_res = audio_tool.play_audio_based_on_event(&event);
+            match audio_res {
+                Ok(_) => {},
+                Err(err) => println!("Audio tool error: {}", err),
+            }
         }
     }
 
@@ -85,8 +86,10 @@ impl VisualizableRobot {
         self.sender.send(RobotChannelItem::Map(world_state)).expect("Sending state from robot to visualizer failed");
     }
 
-    fn send_event(&self, event: &RobotEvent) {
-
+    fn send_event(&self, event: RobotEvent) {
+        println!("Robot event: {:?}", event);
+        let channel_item = RobotChannelItem::RobotEventItem(event.clone());
+        self.sender.send(channel_item).expect(&format!("VisualizableRobot: sending event {} failed.", event));
     }
 }
 
