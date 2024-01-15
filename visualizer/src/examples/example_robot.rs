@@ -1,12 +1,12 @@
-use robotics_lib::{runner::{Robot, Runnable}, interface::{go, Direction}};
+use robotics_lib::{runner::{Robot, Runnable}, interface::Direction};
 
-use crate::visualizer::{visualizable_interfaces::{VisualizableInterfaces, Visalizable, VisualizerDataSender}, visualizable_robot::RobotCreator};
+use crate::visualizer::{visualizable_interfaces::VisualizableInterfaces, visualizable_robot::RobotCreator, visualizer_event_listener::{VisualizerEventListener, Visalizable}};
 
 pub struct ExampleRobot{
     properties: Robot,
     tick_counter: usize,
     some_param: i32, // to show how to pass parameter to your robot
-    data_sender: VisualizerDataSender
+    visualizer_event_listener: VisualizerEventListener
 }
 
 pub struct ExampleRobotFactory {
@@ -20,15 +20,15 @@ impl ExampleRobotFactory {
 }
 
 impl RobotCreator for ExampleRobotFactory {
-    fn create(&self, data_sender: VisualizerDataSender) -> Box<dyn Runnable> {
-        let example_robot = ExampleRobot {properties: Robot::new(), tick_counter: 0, some_param:self.some_param, data_sender: data_sender };
+    fn create(&self, data_sender: VisualizerEventListener) -> Box<dyn Runnable> {
+        let example_robot = ExampleRobot {properties: Robot::new(), tick_counter: 0, some_param:self.some_param, visualizer_event_listener: data_sender };
         Box::new(example_robot)
     }
 }
 
 impl<'a> Visalizable<'a> for ExampleRobot {
-    fn borrow_interface_sender(&'a self) -> &'a VisualizerDataSender {
-        &self.data_sender
+    fn borrow_interface_sender(&'a self) -> &'a VisualizerEventListener{
+        &self.visualizer_event_listener
     }
 }
 
@@ -59,7 +59,7 @@ impl Runnable for ExampleRobot {
         self.tick_counter+=1;
 
         match VisualizableInterfaces::go(self, world, self.get_direction()) {
-            Ok((_, (x, y))) => {println!("Example robot: new position x:{x}, y: {y}")}
+            Ok((_, (y, x))) => {println!("Example robot: new position {:?}", (x,y))}
             Err(_) => {
                 self.change_direction();
                 println!("Example robot: changing direction: {:?}", self.get_direction())
@@ -69,6 +69,9 @@ impl Runnable for ExampleRobot {
 
     fn handle_event(&mut self, event: robotics_lib::event::events::Event) {
         println!("Example robot received event: {}", event);
+        // BEWARE - for a visualizer to work it is neccessary to call this method from 
+        // handle_event method of your robot
+        self.visualizer_event_listener.handle_event(&event); 
     }
 
     fn get_energy(&self) -> &robotics_lib::energy::Energy {

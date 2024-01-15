@@ -1,10 +1,10 @@
-use std::{sync::mpsc::Sender, collections::HashMap};
+use std::collections::HashMap;
 
 use rizzler_rust_and_furious::rizzler::Rizzler;
 use robotics_lib::{interface::{Direction, where_am_i, go, get_score, one_direction_view, robot_map, robot_view}, runner::Runnable, world::{tile::{Content, Tile}, World, environmental_conditions::EnvironmentalConditions}, utils::LibError};
 use rstykrab_cache::Action; 
 
-use super::Coord;
+use super::{Coord, visualizer_event_listener::Visalizable};
 
 pub(crate) struct InterfaceChannelItem{
     interface_action: Action,
@@ -22,19 +22,6 @@ impl InterfaceChannelItem {
     }
 }
 
-pub trait Visalizable<'a> {
-    fn borrow_interface_sender(&'a self) -> &'a VisualizerDataSender;
-}
-
-pub struct VisualizerDataSender{
-    sender: Sender<InterfaceChannelItem>
-}
-impl VisualizerDataSender {
-    pub(crate) fn new(sender: Sender<InterfaceChannelItem>) -> VisualizerDataSender {
-        VisualizerDataSender {sender}
-    }
-}
-
 pub struct VisualizableInterfaces {
 }
 
@@ -42,7 +29,7 @@ impl VisualizableInterfaces {
     fn send_action<'a>(action:Action, robot: &'a(impl Runnable + Visalizable<'a>), world: &World, riz_message: Option<String>) {
         let (_, (x,y)) = where_am_i(robot, world);
         let channel_item = InterfaceChannelItem::new(action, Coord::new(x, y), riz_message);
-        robot.borrow_interface_sender().sender.send(channel_item).expect("VisualizableInterfaces: sending action failed.");
+        robot.borrow_interface_sender().interface_sender.send(channel_item).expect("VisualizableInterfaces: sending action failed.");
     }
 
     /// Given a content to craft, will attempt to craft it from the contents already present in the backpack

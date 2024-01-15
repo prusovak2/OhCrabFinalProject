@@ -1,4 +1,4 @@
-use std::{sync::mpsc::{Receiver, self}, collections::HashMap};
+use std::{sync::mpsc::{Receiver, self}, collections::HashMap, f64::consts::E};
 
 use ggez::{event::{EventHandler, self}, timer, graphics::{self, Color}, GameError};
 use oxagworldgenerator::world_generator::OxAgWorldGenerator;
@@ -7,11 +7,12 @@ use rstykrab_cache::Cache;
 
 use crate::visualizer::draw_utils;
 
-use super::{visualizable_robot::{VisualizableRobot, RobotChannelItem, RobotCreator}, visualizable_interfaces::{InterfaceChannelItem, VisualizerDataSender}, Coord};
+use super::{visualizable_robot::{VisualizableRobot, RobotCreator, MapChannelItem}, visualizable_interfaces::InterfaceChannelItem, Coord, visualizer_event_listener::{EventChannelItem, VisualizerEventListener}};
 
 pub struct OhCrabVisualizer {
     runner: Runner,
-    robot_receiver: Receiver<RobotChannelItem>,
+    robot_event_receiver: Receiver<EventChannelItem>,
+    robot_map_receiver: Receiver<MapChannelItem>,
     interface_receiver: Receiver<InterfaceChannelItem>,
     action_cache: Cache,
 
@@ -75,15 +76,19 @@ impl OhCrabVisualizerConfig {
 impl OhCrabVisualizer {
     pub fn new(robot_creator: impl RobotCreator, mut world_generator: OxAgWorldGenerator, config: OhCrabVisualizerConfig) -> OhCrabVisualizer {
         let (interface_sender, interface_receiver) = mpsc::channel::<InterfaceChannelItem>();
-        let visualizer_data_sender = VisualizerDataSender::new(interface_sender);
+        let (event_sender, event_receiver) = mpsc::channel::<EventChannelItem>();
+        let (map_sender, map_receiver) = mpsc::channel::<MapChannelItem>();
+
+        let mut visualizer_data_sender = VisualizerEventListener::new(interface_sender, event_sender, config.use_sound);
         let robot = robot_creator.create(visualizer_data_sender);
-        let (robot_sender, robot_receiver) = mpsc::channel::<RobotChannelItem>();
-        let visualizable_robot = VisualizableRobot::new(robot, robot_sender, config.use_sound);
+        let visualizable_robot = VisualizableRobot::new(robot, map_sender);
+
         let runner = Runner::new(Box::new(visualizable_robot), &mut world_generator).expect("Runner creation failed");
 
         OhCrabVisualizer {
             runner: runner,
-            robot_receiver,
+            robot_event_receiver: event_receiver,
+            robot_map_receiver: map_receiver,
             interface_receiver, 
             action_cache: Cache::new(10),
             interactive_mode: config.interactive_mode,
@@ -126,69 +131,68 @@ impl OhCrabVisualizer {
             Err(robot_err) => { return Err(OhCrabVisualizerError::RobotLibError(robot_err)); } 
         } 
     }
+
+    fn init_state(&mut self)  -> Result<(), OhCrabVisualizerError> {
+        println!("VISUALIZER UPDATE, doing first world tick.");
+        self.do_world_tick()?;
+        let received_map = self.robot_map_receiver.try_recv();
+        match received_map {
+            Ok(map_item) => {
+                println!("VISUALIZER RECEIVED MAP with robot position {:?}", (map_item.map.robot_position.x, map_item.map.robot_position.y));
+                self.world_state.world_map = Some(map_item.map.world_map);
+                self.world_state.robot_position = Some( map_item.map.robot_position);
+                Ok(())
+            }
+            Err(_) => todo!(),
+        }
+    }
 }
 
 impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
     fn update(&mut self, _ctx: &mut ggez::Context) -> Result<(), OhCrabVisualizerError> {
         println!("VISUALIZER UPDATE, TICK COUNT: {} (total ticks {})", self.tick_counter, self.total_ticks);
-        if self.tick_counter == 0 {
-            // to produce some events that can be processed, otherwise the channells would be empty
-            println!("VISUALIZER UPDATE, doing first world tick.");
-            self.do_world_tick()?;
-        }
         if self.tick_counter >= self.total_ticks {
             //_ctx.request_quit();
             println!("empty update");
             return Ok(());
         }
+        if self.tick_counter == 0 {
+            self.init_state()?;
+        }
 
         println!("VISUALIZER UPDATE, receiving from robot channel.");
-        let received_state = self.robot_receiver.try_recv();
+        let received_state = self.robot_event_receiver.try_recv();
 
         match received_state {
             Ok(channel_item) => {
                 println!("VISUALIZER UPDATE, received item {:?}.", channel_item);
-                timer::sleep(std::time::Duration::from_millis(self.delay_in_milis));
-                match channel_item {
-                    RobotChannelItem::RobotEventItem(robot_event) => {
-                        match robot_event {
-                            // RobotEvent::Ready => todo!(),
-                            // RobotEvent::Terminated => todo!(),
-                            // RobotEvent::TimeChanged(_) => todo!(),
-                            // RobotEvent::DayChanged(_) => todo!(),
-                            // RobotEvent::EnergyRecharged(_) => todo!(),
-                            // RobotEvent::EnergyConsumed(_) => todo!(),
-                            RobotEvent::Moved(_, (robot_x, robot_y)) => {
-                                println!("VISUALIZER: received robot moved {:?}", (robot_x, robot_y));
-                                self.world_state.robot_position = Some(Coord{x:robot_x, y:robot_y });
-                                Ok(())
-                            }
-                            RobotEvent::TileContentUpdated(tile, (tile_x, tile_y)) => {
-                                println!("VISUALIZER: received tile content update.");
-                                // TODO: I'm reciving content update event, I can only receive the whole map in the firts tick
-                                // and then only listen to events
-                                if let Some(world_map) = &mut self.world_state.world_map{
-                                    world_map[tile_y][tile_x] = tile;
-                                }
-                                Ok(())
-                            }
-                            RobotEvent::AddedToBackpack(content, amount) => {
-                                println!("VISUALIZER: added to backpack.");
-                                *self.world_state.backpack.entry(content).or_insert(0) += amount;
-                                Ok(())
-                            }
-                            // RobotEvent::RemovedFromBackpack(_, _) => todo!(),
-                            _ => Ok(())
-                        }
+                timer::sleep(std::time::Duration::from_millis(self.delay_in_milis)); // TODO: why is this sleep there and not somewhere else?
+                match  channel_item.event {
+                    // RobotEvent::Ready => todo!(),
+                    // RobotEvent::Terminated => todo!(),
+                    // RobotEvent::TimeChanged(_) => todo!(),
+                    // RobotEvent::DayChanged(_) => todo!(),
+                    // RobotEvent::EnergyRecharged(_) => todo!(),
+                    // RobotEvent::EnergyConsumed(_) => todo!(),
+                    RobotEvent::Moved(_, (robot_y, robot_x)) => { // BEWARE: library has x and y switched in Move event
+                        println!("VISUALIZER: received robot moved {:?}", (robot_x, robot_y));
+                        self.world_state.robot_position = Some(Coord{x:robot_x, y:robot_y });
+                        Ok(())
                     }
-                    RobotChannelItem::Map(world_map) => {
-                        println!("VISUALIZER RECEIVED MAP with robot position {:?}", (world_map.robot_position.x, world_map.robot_position.y));
-                        self.world_state.world_map = Some(world_map.world_map);
-                        if self.world_state.robot_position.is_none() {
-                            self.world_state.robot_position = Some(Coord { x: world_map.robot_position.x, y: world_map.robot_position.y });
+                    RobotEvent::TileContentUpdated(tile, (tile_x, tile_y)) => {
+                        println!("VISUALIZER: received tile content update.");
+                        if let Some(world_map) = &mut self.world_state.world_map{
+                            world_map[tile_y][tile_x] = tile;
                         }
                         Ok(())
                     }
+                    RobotEvent::AddedToBackpack(content, amount) => {
+                        println!("VISUALIZER: added to backpack.");
+                        *self.world_state.backpack.entry(content).or_insert(0) += amount;
+                        Ok(())
+                    }
+                    // RobotEvent::RemovedFromBackpack(_, _) => todo!(),
+                    _ => Ok(())
                 }
             }
             Err(std::sync::mpsc::TryRecvError::Empty) => {
