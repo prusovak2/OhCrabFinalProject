@@ -4,7 +4,11 @@ use robotics_lib::{runner::Runnable, interface::debug, event::events::Event as R
 
 use crate::audio::get_configured_audio_tool;
 
-use super::Coord;
+use super::{Coord, visualizable_interfaces::VisualizerDataSender, visualizer::WorldMap};
+
+pub trait RobotCreator {
+    fn create(&self, interfaces: VisualizerDataSender) -> Box<dyn Runnable>;
+}
 
 pub(crate) struct VisualizableRobot {
     real_robot: Box<dyn Runnable>,
@@ -17,7 +21,7 @@ impl VisualizableRobot {
         VisualizableRobot {
             real_robot: real_robot,
             audio_tool: if use_sound { Some(VisualizableRobot::get_configured_audio_tool())} else {None},
-            sender: sender
+            sender: sender,
         }
     }
 }
@@ -80,32 +84,20 @@ impl VisualizableRobot {
 
     fn update_state(&self, world: &mut robotics_lib::world::World) {
         let (map, _, (robot_y, robot_x)) = debug(self, world);
-        // println!("{:?}", map);
-        // println!("ROBOT SENDING {:?}", (robot_x, robot_y));
+        println!("VISUALIZABLE ROBOT SENDING ON POSITION {:?} SENDING WORLD MAP", (robot_x, robot_y));
+        println!("{:?}", map);
         let world_state = WorldMap::new(map, (robot_x, robot_y));
         self.sender.send(RobotChannelItem::Map(world_state)).expect("Sending state from robot to visualizer failed");
     }
 
     fn send_event(&self, event: RobotEvent) {
-        println!("Robot event: {:?}", event);
+        println!("VISUALIZABLE ROBOT SENDING EVENT: {:?}", event);
         let channel_item = RobotChannelItem::RobotEventItem(event.clone());
         self.sender.send(channel_item).expect(&format!("VisualizableRobot: sending event {} failed.", event));
     }
 }
 
-
 pub(crate) enum RobotChannelItem {
     RobotEventItem(RobotEvent),
     Map(WorldMap)
-}
-
-pub(crate) struct WorldMap {
-    world_map: Vec<Vec<Tile>>,
-    robot_position: Coord
-}
-
-impl WorldMap {
-    pub(crate) fn new(world_map: Vec<Vec<Tile>>, (robot_x, roboy_y): (usize, usize)) -> WorldMap {
-        WorldMap { world_map: world_map, robot_position: Coord { x: robot_x, y: roboy_y } }
-    }
 }

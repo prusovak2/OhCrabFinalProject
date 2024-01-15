@@ -1,6 +1,6 @@
 use robotics_lib::{runner::{Robot, Runnable}, interface::{go, Direction}};
 
-use crate::visualizer::{visualizable_interfaces::{VisualizableInterfaces, Visalizable, VisualizerDataSender}, visualizer::RobotCreator};
+use crate::visualizer::{visualizable_interfaces::{VisualizableInterfaces, Visalizable, VisualizerDataSender}, visualizable_robot::RobotCreator};
 
 pub struct ExampleRobot{
     properties: Robot,
