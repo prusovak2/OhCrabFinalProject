@@ -35,7 +35,7 @@ impl MockRobot {
 impl Runnable for MockRobot {
     fn process_tick(&mut self, world: &mut robotics_lib::world::World) {
         self.update_state(world);
-        println!("TICK COUNT: {:?}", self.tick_counter);
+        println!("example robot: TICK COUNT: {:?}", self.tick_counter);
         self.tick_counter+=1;
 
         let res = go(self, world, robotics_lib::interface::Direction::Down);

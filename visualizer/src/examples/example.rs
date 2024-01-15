@@ -9,5 +9,7 @@ pub fn example(){
 
     let config = OhCrabVisualizerConfig::new(20, false, false, 500);
     let mut visualizer = OhCrabVisualizer::new(robot_factory, world_generator, config);
-    visualizer.run().unwrap();
+    
+    //visualizer.simulate().unwrap();
+    visualizer.run().unwrap()
 }

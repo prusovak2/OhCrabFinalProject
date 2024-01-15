@@ -97,7 +97,8 @@ impl VisualizableRobot {
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum RobotChannelItem {
     RobotEventItem(RobotEvent),
-    Map(WorldMap)
+    Map(WorldMap),
 }

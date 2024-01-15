@@ -6,8 +6,10 @@ use ggez::{glam, Context, ContextBuilder, GameResult};
 pub mod visualizable_robot;
 pub mod visualizable_interfaces;
 pub mod visualizer;
+mod draw_utils;
 
 // /// Coordinate struct from robotic-lib does not allow for its instances to be created
+#[derive(Debug)]
 pub(crate) struct Coord {
     pub x: usize, 
     pub y: usize
