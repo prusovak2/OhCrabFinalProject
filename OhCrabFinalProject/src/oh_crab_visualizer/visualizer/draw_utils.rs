@@ -7,6 +7,7 @@ use crate::println_d;
 
 use super::{Coord, visualizer::OhCrabVisualizerError};
 
+#[derive(Default)]
 pub(super) struct GridCanvasProperties {
     pub(super) tile_size: f32,
     pub(super) grid_canvas_width: f32, 
@@ -16,13 +17,23 @@ pub(super) struct GridCanvasProperties {
 }
 
 impl GridCanvasProperties {
-    fn num_rows_to_display(&self) -> u32 {
+    pub(super) fn num_rows_to_display(&self) -> u32 {
         (self.grid_canvas_height / self.tile_size).floor() as u32
     }
 
-    fn num_columns_to_display(&self) -> u32 {
+    pub(super) fn num_columns_to_display(&self) -> u32 {
         (self.grid_canvas_width / self.tile_size).floor() as u32
     }
+
+    pub(super) fn build(canvas_total_size: f32, tile_size: f32) -> GridCanvasProperties {
+        GridCanvasProperties {
+            tile_size: tile_size,
+            grid_canvas_height: canvas_total_size - 150.0,
+            grid_canvas_width: canvas_total_size - 150.0,
+            grid_canvas_origin_x: 200.0,
+            grid_canvas_origin_y: 0.0,
+        }
+    } 
 }
 
 pub(super) fn draw_grid(

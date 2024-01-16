@@ -1,4 +1,4 @@
-use std::{sync::mpsc::{Receiver, self}, collections::HashMap};
+use std::{sync::mpsc::{Receiver, self}, collections::HashMap, default};
 
 use ggegui::{egui::{self, ScrollArea, Key}, Gui};
 use ggez::{event::{EventHandler, self}, timer, graphics::{self, Color, DrawParam}, GameError, Context, glam, input::gamepad::gilrs::GilrsBuilder};
@@ -52,7 +52,8 @@ impl WorldState {
 struct VisualizationState {
     offset_x: f32,
     offset_y: f32,
-    tile_size: f32
+
+    grid_canvas_properties: GridCanvasProperties
 }
 
 #[derive(Debug)]
@@ -146,9 +147,10 @@ impl OhCrabVisualizer {
         } 
     }
 
-    fn init_state(&mut self)  -> Result<(), OhCrabVisualizerError> {
+    fn init_state(&mut self, canvas_size: f32)  -> Result<(), OhCrabVisualizerError> {
         println_d!("MY awesome macro {} {}.", 42, 73);
         println_d!("VISUALIZER UPDATE, doing first world tick.");
+        self.visualization_state.grid_canvas_properties = GridCanvasProperties::build(canvas_size, TILE_SIZE);
         self.do_world_tick()?;
         let received_map = self.map_receiver.try_recv();
         match received_map {
@@ -168,8 +170,11 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
         println_d!("VISUALIZER UPDATE, TICK COUNT: {} (total ticks {})", self.tick_counter, self.total_ticks);
 
         if self.tick_counter == 0 {
-            self.init_state()?;
+            let (x, y) = ctx.gfx.size();
+            let size = f32::min(x, y);
+            self.init_state(size)?;
         }
+
 
         let gui = &mut self.gui;
         let gui_ctx = &gui.ctx();
@@ -183,10 +188,14 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
         //     }
         // });
         // gui.update(ctx);
+       
+
         egui::Window::new("Scroll world").show(&gui_ctx, |ui| {
             if let Some(world_map) = &self.world_state.world_map {
-                ui.add(egui::Slider::new(&mut self.visualization_state.offset_x, 0.0..=((world_map.len() - 1) as f32)));
-                ui.add(egui::Slider::new(&mut self.visualization_state.offset_y, ((world_map.len() - 1) as f32)..=0.0).orientation(egui::SliderOrientation::Vertical));
+                let scroll_limit_x = (world_map.len() - (self.visualization_state.grid_canvas_properties.num_columns_to_display() as usize)) as f32;
+                let scroll_limit_y = (world_map.len() - (self.visualization_state.grid_canvas_properties.num_rows_to_display() as usize)) as f32;
+                ui.add(egui::Slider::new(&mut self.visualization_state.offset_x, 0.0..=scroll_limit_x));
+                ui.add(egui::Slider::new(&mut self.visualization_state.offset_y, scroll_limit_y..=0.0).orientation(egui::SliderOrientation::Vertical));
             }
             
             //ui.add(egui::DragValue::new(&mut self.offset_x));
