@@ -1,18 +1,62 @@
 use std::collections::HashMap;
 
-use ggez::{graphics::{Canvas, Color, self, TextFragment}, Context, glam};
+use ggez::{graphics::{Canvas, Color, self, TextFragment, Image, ImageFormat, Drawable}, Context, glam};
 use robotics_lib::world::tile::{Tile, TileType, Content};
+
+use crate::println_d;
 
 use super::{Coord, visualizer::OhCrabVisualizerError};
 
-pub(super) fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: usize, y:usize, tile_size: f32) -> Result<(), OhCrabVisualizerError> {
+pub(super) struct GridCanvasProperties {
+    pub(super) tile_size: f32,
+    pub(super) grid_canvas_width: f32, 
+    pub(super) grid_canvas_height: f32,
+    pub(super) grid_canvas_origin_x: f32,
+    pub(super) grid_canvas_origin_y: f32,
+}
+
+impl GridCanvasProperties {
+    fn num_rows_to_display(&self) -> u32 {
+        (self.grid_canvas_height / self.tile_size).floor() as u32
+    }
+
+    fn num_columns_to_display(&self) -> u32 {
+        (self.grid_canvas_width / self.tile_size).floor() as u32
+    }
+}
+
+pub(super) fn draw_grid(
+        ctx: &mut ggez::Context,
+        canvas: &mut Canvas,
+        canvas_props: &GridCanvasProperties,
+        tile_offset: &Coord,
+        world_map: &Vec<Vec<Tile>>) 
+    -> Result<(), OhCrabVisualizerError> {
+
+    let world_dimension = world_map.len();
+    let rows_to_display = canvas_props.num_rows_to_display();
+    let columns_to_display = canvas_props.num_columns_to_display();
+
+    let last_column = usize::min(world_dimension, tile_offset.x + (columns_to_display as usize));
+    let last_row = usize::min(world_dimension, tile_offset.y + (rows_to_display as usize));
+
+    for y in tile_offset.y..last_row {
+        for x in tile_offset.x..last_column {
+            let tile: &Tile = &world_map[y][x]; 
+            draw_tile(tile, ctx, canvas, x-tile_offset.x, y-tile_offset.y, canvas_props.tile_size, canvas_props.grid_canvas_origin_x, canvas_props.grid_canvas_origin_y)?;
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: usize, y:usize, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32) -> Result<(), OhCrabVisualizerError> {
     let color = get_tile_color(&tile.tile_type);
     let res = graphics::Mesh::new_rectangle(
         ctx,
         graphics::DrawMode::fill(),
         graphics::Rect::new(
-            x as f32 * tile_size,
-            y as f32 * tile_size,
+            (x as f32 * tile_size) + grid_canvas_origin_x,
+            (y as f32 * tile_size) + grid_canvas_origin_y,
             tile_size,
             tile_size,
         ),
@@ -24,8 +68,8 @@ pub(super) fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: 
             canvas.draw(&rect, graphics::DrawParam::default());
 
             // TODO: use draw_text fn
-            let center_x = (x as f32 + 0.05) * tile_size;
-            let center_y = (y as f32 + 0.75) * tile_size;
+            let center_x = ((x as f32 + 0.05) * tile_size) + grid_canvas_origin_x;
+            let center_y = ((y as f32 + 0.75) * tile_size) + grid_canvas_origin_y;
             let text_size = tile_size * 0.18;
             let dest_point = ggez::glam::Vec2::new(center_x, center_y);
             let text_color = invert_color(&color);
