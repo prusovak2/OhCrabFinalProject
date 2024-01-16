@@ -5,6 +5,9 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+visualizer_verbose = []
+
 [dependencies]
 robotics_lib = { version = "0.1.21", registry = "kellnr" }
 oxagaudiotool = { version = "0.2.0", registry = "kellnr" }

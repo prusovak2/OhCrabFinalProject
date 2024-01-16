@@ -5,7 +5,7 @@ use oxagworldgenerator::world_generator::OxAgWorldGenerator;
 use robotics_lib::{runner::Runner, utils::LibError as RobotError, event::events::Event as RobotEvent, world::tile::{Tile, Content}};
 use rstykrab_cache::Cache;
 
-use crate::oh_crab_visualizer::visualizer::draw_utils;
+use crate::{oh_crab_visualizer::visualizer::{draw_utils, visualizer_debug}, println_d};
 
 use super::{visualizable_robot::{VisualizableRobot, RobotCreator, MapChannelItem}, Coord, visualizer_event_listener::{VisualizerEventListener, ChannelItem}};
 
@@ -130,6 +130,7 @@ impl OhCrabVisualizer {
     }
 
     fn init_state(&mut self)  -> Result<(), OhCrabVisualizerError> {
+        println_d!("MY awesome macro {} {}.", 42, 73);
         println!("VISUALIZER UPDATE, doing first world tick.");
         self.do_world_tick()?;
         let received_map = self.map_receiver.try_recv();

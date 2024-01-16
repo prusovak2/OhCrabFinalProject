@@ -8,6 +8,9 @@ pub mod visualizable_interfaces;
 pub mod visualizer;
 mod draw_utils;
 pub mod visualizer_event_listener;
+mod visualizer_debug;
+
+
 
 // /// Coordinate struct from robotic-lib does not allow for its instances to be created
 #[derive(Debug)]
