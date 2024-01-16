@@ -10,6 +10,9 @@ use crate::{oh_crab_visualizer::visualizer::{draw_utils::{self, GridCanvasProper
 
 use super::{visualizable_robot::{VisualizableRobot, RobotCreator, MapChannelItem}, Coord, visualizer_event_listener::{VisualizerEventListener, ChannelItem}};
 
+pub(super) const TILE_SIZE_MIN:f32 = 5.0;
+pub(super) const TILE_SIZE_MAX:f32 = 120.8;
+
 pub(super) const TILE_SIZE:f32 = 120.8;
 pub(super) const GRID_FRAME_WIDTH: f32 = 20.0;
 pub(super) const GRID_CANVAS_ORIGIN_X: f32 = 200.0 + GRID_FRAME_WIDTH;
@@ -195,10 +198,11 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
 
         egui::Window::new("Scroll world").show(&gui_ctx, |ui| {
             if let Some(world_map) = &self.world_state.world_map {
-                let scroll_limit_x = (world_map.len() - (self.visualization_state.grid_canvas_properties.num_columns_to_display() as usize)) as f32;
-                let scroll_limit_y = (world_map.len() - (self.visualization_state.grid_canvas_properties.num_rows_to_display() as usize)) as f32;
+                let scroll_limit_x = (world_map.len() - usize::min(world_map.len(), self.visualization_state.grid_canvas_properties.num_columns_to_display() as usize)) as f32;
+                let scroll_limit_y = (world_map.len() - usize::min(world_map.len(), self.visualization_state.grid_canvas_properties.num_rows_to_display() as usize)) as f32;
                 ui.add(egui::Slider::new(&mut self.visualization_state.offset_x, 0.0..=scroll_limit_x));
                 ui.add(egui::Slider::new(&mut self.visualization_state.offset_y, scroll_limit_y..=0.0).orientation(egui::SliderOrientation::Vertical));
+                ui.add(egui::Slider::new(&mut self.visualization_state.grid_canvas_properties.tile_size, TILE_SIZE_MIN..=TILE_SIZE_MAX));
             }
             
             //ui.add(egui::DragValue::new(&mut self.offset_x));
@@ -284,7 +288,6 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
     }
 
     fn draw(&mut self, ctx: &mut ggez::Context) -> Result<(), OhCrabVisualizerError> {
-        println!("ofset x {}" , self.visualization_state.offset_x);
         // world map
         if let Some(world_map) = &self.world_state.world_map {
             println_d!("draw");

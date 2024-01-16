@@ -69,10 +69,10 @@ fn draw_grid_frame(ctx: &mut Context, canvas: &mut Canvas, canvas_props: &GridCa
         graphics::Rect::new(
             canvas_props.grid_canvas_origin_x - visualizer::GRID_FRAME_WIDTH,
             canvas_props.grid_canvas_origin_y - visualizer::GRID_FRAME_WIDTH,
-            canvas_props.tile_size * (canvas_props.num_columns_to_display() as f32) + (visualizer::GRID_FRAME_WIDTH * 2.0),
-            canvas_props.tile_size * (canvas_props.num_rows_to_display() as f32) + (visualizer::GRID_FRAME_WIDTH * 2.0),
+            canvas_props.grid_canvas_width + (visualizer::GRID_FRAME_WIDTH * 2.0),
+            canvas_props.grid_canvas_width  + (visualizer::GRID_FRAME_WIDTH * 2.0),
         ),
-        Color::YELLOW
+        Color::from_rgb(128, 128, 128)
     );
     match res {
         Ok(rect) => {
