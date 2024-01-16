@@ -10,7 +10,10 @@ use crate::{oh_crab_visualizer::visualizer::{draw_utils::{self, GridCanvasProper
 
 use super::{visualizable_robot::{VisualizableRobot, RobotCreator, MapChannelItem}, Coord, visualizer_event_listener::{VisualizerEventListener, ChannelItem}};
 
-const TILE_SIZE:f32 = 120.8;
+pub(super) const TILE_SIZE:f32 = 120.8;
+pub(super) const GRID_FRAME_WIDTH: f32 = 20.0;
+pub(super) const GRID_CANVAS_ORIGIN_X: f32 = 200.0 + GRID_FRAME_WIDTH;
+pub(super) const GRID_CANVAS_ORIGIN_Y: f32 = 0.0 + GRID_FRAME_WIDTH;
 
 pub struct OhCrabVisualizer {
     runner: Runner,
@@ -150,7 +153,7 @@ impl OhCrabVisualizer {
     fn init_state(&mut self, canvas_size: f32)  -> Result<(), OhCrabVisualizerError> {
         println_d!("MY awesome macro {} {}.", 42, 73);
         println_d!("VISUALIZER UPDATE, doing first world tick.");
-        self.visualization_state.grid_canvas_properties = GridCanvasProperties::build(canvas_size, TILE_SIZE);
+        self.visualization_state.grid_canvas_properties = GridCanvasProperties::build(canvas_size);
         self.do_world_tick()?;
         let received_map = self.map_receiver.try_recv();
         match received_map {
@@ -293,16 +296,9 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
             let tile_size = 64 as f32; //(size / world_dimension as f32) - 10 as f32;
             println_d!("TILE SIZE: {}", tile_size);
 
-            let grid_canvas_props = GridCanvasProperties {
-                tile_size: TILE_SIZE,
-                grid_canvas_height: size - 150.0,
-                grid_canvas_width: size - 150.0,
-                grid_canvas_origin_x: 200.0,
-                grid_canvas_origin_y: 0.0,
-            };
             let tile_offset = Coord { x: f32::floor(self.visualization_state.offset_x) as usize, y: f32::floor(self.visualization_state.offset_y) as usize };
 
-            draw_utils::draw_grid(ctx, &mut canvas, &grid_canvas_props, &tile_offset, world_map)?;
+            draw_utils::draw_grid(ctx, &mut canvas, &self.visualization_state.grid_canvas_properties, &tile_offset, world_map)?;
             canvas.draw(&self.gui, DrawParam::default().dest(glam::Vec2::new(400.0, 400.0)));
 
             //canvas.draw(&self.gui, DrawParam::default().dest(glam::Vec2::new(grid_canvas_props.grid_canvas_width + 20.0, grid_canvas_props.grid_canvas_height - 20.0)));

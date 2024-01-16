@@ -5,7 +5,7 @@ use robotics_lib::world::tile::{Tile, TileType, Content};
 
 use crate::println_d;
 
-use super::{Coord, visualizer::OhCrabVisualizerError};
+use super::{Coord, visualizer::{OhCrabVisualizerError, self}};
 
 #[derive(Default)]
 pub(super) struct GridCanvasProperties {
@@ -25,13 +25,13 @@ impl GridCanvasProperties {
         (self.grid_canvas_width / self.tile_size).floor() as u32
     }
 
-    pub(super) fn build(canvas_total_size: f32, tile_size: f32) -> GridCanvasProperties {
+    pub(super) fn build(canvas_total_size: f32) -> GridCanvasProperties {
         GridCanvasProperties {
-            tile_size: tile_size,
+            tile_size: visualizer::TILE_SIZE,
             grid_canvas_height: canvas_total_size - 150.0,
             grid_canvas_width: canvas_total_size - 150.0,
-            grid_canvas_origin_x: 200.0,
-            grid_canvas_origin_y: 0.0,
+            grid_canvas_origin_x: visualizer::GRID_CANVAS_ORIGIN_X,
+            grid_canvas_origin_y: visualizer::GRID_CANVAS_ORIGIN_Y,
         }
     } 
 }
@@ -51,6 +51,8 @@ pub(super) fn draw_grid(
     let last_column = usize::min(world_dimension, tile_offset.x + (columns_to_display as usize));
     let last_row = usize::min(world_dimension, tile_offset.y + (rows_to_display as usize));
 
+    draw_grid_frame(ctx, canvas, canvas_props)?;
+
     for y in tile_offset.y..last_row {
         for x in tile_offset.x..last_column {
             let tile: &Tile = &world_map[y][x]; 
@@ -58,6 +60,27 @@ pub(super) fn draw_grid(
         }
     }
     Ok(())
+}
+
+fn draw_grid_frame(ctx: &mut Context, canvas: &mut Canvas, canvas_props: &GridCanvasProperties) -> Result<(), OhCrabVisualizerError> {
+    let res = graphics::Mesh::new_rectangle(
+        ctx,
+        graphics::DrawMode::fill(),
+        graphics::Rect::new(
+            canvas_props.grid_canvas_origin_x - visualizer::GRID_FRAME_WIDTH,
+            canvas_props.grid_canvas_origin_y - visualizer::GRID_FRAME_WIDTH,
+            canvas_props.tile_size * (canvas_props.num_columns_to_display() as f32) + (visualizer::GRID_FRAME_WIDTH * 2.0),
+            canvas_props.tile_size * (canvas_props.num_rows_to_display() as f32) + (visualizer::GRID_FRAME_WIDTH * 2.0),
+        ),
+        Color::YELLOW
+    );
+    match res {
+        Ok(rect) => {
+            canvas.draw(&rect, graphics::DrawParam::default());
+            Ok(())
+        }
+        Err(error) => Err(OhCrabVisualizerError::GraphicsLibraryError(error))
+    }
 }
 
 pub(super) fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: usize, y:usize, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32) -> Result<(), OhCrabVisualizerError> {
