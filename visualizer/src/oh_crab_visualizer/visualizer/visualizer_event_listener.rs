@@ -4,16 +4,9 @@ use oxagaudiotool::OxAgAudioTool;
 use robotics_lib::event::events::Event as RobotEvent;
 use rstykrab_cache::Action;
 
-use crate::audio::get_configured_audio_tool;
+use crate::oh_crab_visualizer::audio::get_configured_audio_tool;
 
 use super::Coord;
-
-// trait RunnableVisualizable<'a>: Runnable + Visalizable<'a> {
-// }
-
-pub trait Visalizable<'a> {
-    fn borrow_interface_sender(&'a self) -> &'a VisualizerEventListener;
-}
 
 #[derive(Debug)]
 pub(crate) enum ChannelItem {

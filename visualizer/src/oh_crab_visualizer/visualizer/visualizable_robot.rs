@@ -4,6 +4,13 @@ use robotics_lib::{runner::Runnable, interface::debug, event::events::Event as R
 
 use super::{visualizer::WorldMap, visualizer_event_listener::VisualizerEventListener};
 
+// trait RunnableVisualizable<'a>: Runnable + Visalizable<'a> {
+// }
+
+pub trait Visulizable<'a> {
+    fn borrow_event_listener(&'a self) -> &'a VisualizerEventListener;
+}
+
 pub trait RobotCreator {
     fn create(&self, event_listener: VisualizerEventListener) -> Box<dyn Runnable>;
 }

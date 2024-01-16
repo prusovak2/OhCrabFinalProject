@@ -1,5 +1,4 @@
-
-use crate::visualizer::visualizer::{OhCrabVisualizerConfig, OhCrabVisualizer};
+use crate::oh_crab_visualizer::visualizer::visualizer::{OhCrabVisualizerConfig, OhCrabVisualizer};
 
 use super::example_robot::ExampleRobotFactory;
 

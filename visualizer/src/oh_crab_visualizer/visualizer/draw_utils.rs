@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
-use ggez::{graphics::{Canvas, Color, self, TextFragment}, Context, glam, GameResult};
-use oxagaudiotool::error::error;
+use ggez::{graphics::{Canvas, Color, self, TextFragment}, Context, glam};
 use robotics_lib::world::tile::{Tile, TileType, Content};
 
 use super::{Coord, visualizer::OhCrabVisualizerError};

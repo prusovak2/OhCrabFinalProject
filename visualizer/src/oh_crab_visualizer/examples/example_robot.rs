@@ -1,8 +1,7 @@
 use OhCrab_collection::collection::CollectTool;
-use ggez::error;
 use robotics_lib::{runner::{Robot, Runnable}, interface::Direction, world::tile::Content};
 
-use crate::visualizer::{visualizable_interfaces::VisualizableInterfaces, visualizable_robot::RobotCreator, visualizer_event_listener::{VisualizerEventListener, Visalizable}};
+use crate::oh_crab_visualizer::visualizer::{visualizable_interfaces::VisualizableInterfaces, visualizable_robot::{RobotCreator, Visulizable}, visualizer_event_listener::VisualizerEventListener};
 
 pub struct ExampleRobot{
     properties: Robot,
@@ -28,8 +27,8 @@ impl RobotCreator for ExampleRobotFactory {
     }
 }
 
-impl<'a> Visalizable<'a> for ExampleRobot {
-    fn borrow_interface_sender(&'a self) -> &'a VisualizerEventListener{
+impl<'a> Visulizable<'a> for ExampleRobot {
+    fn borrow_event_listener(&'a self) -> &'a VisualizerEventListener{
         &self.visualizer_event_listener
     }
 }
