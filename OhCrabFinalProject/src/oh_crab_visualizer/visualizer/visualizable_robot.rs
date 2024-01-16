@@ -2,6 +2,8 @@ use std::sync::mpsc::Sender;
 use robotics_lib::{runner::Runnable, interface::debug, event::events::Event as RobotEvent};
 
 
+use crate::println_d;
+
 use super::{visualizer::WorldMap, visualizer_event_listener::VisualizerEventListener};
 
 // trait RunnableVisualizable<'a>: Runnable + Visalizable<'a> {
@@ -70,8 +72,8 @@ impl VisualizableRobot {
     fn init_state(&mut self, world: &mut robotics_lib::world::World) {
         if !self.is_initialized {
             let (map, _, (robot_y, robot_x)) = debug(self, world);
-            println!("VISUALIZABLE ROBOT SENDING ON POSITION {:?} SENDING WORLD MAP", (robot_x, robot_y));
-            println!("{:?}", map);
+            println_d!("VISUALIZABLE ROBOT SENDING ON POSITION {:?} SENDING WORLD MAP", (robot_x, robot_y));
+            println_d!("{:?}", map);
             let world_state = WorldMap::new(map, (robot_x, robot_y));
             self.map_sender.send(MapChannelItem { map: world_state }).expect("Sending state from robot to visualizer failed");
             self.is_initialized = true

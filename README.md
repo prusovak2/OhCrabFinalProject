@@ -67,4 +67,11 @@
     VisualizableInterfaces::go(self, world, direction)
     ```
 
-    
+* If you wanna enable visualizer debug prints, run project as follows
+
+  ```
+  cargo run --features visualizer_verbose
+  ```
+
+  
+

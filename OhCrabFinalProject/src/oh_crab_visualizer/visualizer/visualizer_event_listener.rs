@@ -4,7 +4,7 @@ use oxagaudiotool::OxAgAudioTool;
 use robotics_lib::event::events::Event as RobotEvent;
 use rstykrab_cache::Action;
 
-use crate::oh_crab_visualizer::audio::get_configured_audio_tool;
+use crate::{oh_crab_visualizer::audio::get_configured_audio_tool, println_d};
 
 use super::Coord;
 
@@ -50,7 +50,7 @@ impl VisualizerEventListener {
     }
 
     fn send_event(&self, event: RobotEvent) {
-        println!("DATA SENDER sending event: {:?}", event);
+        println_d!("DATA SENDER sending event: {:?}", event);
         let channel_item = ChannelItem::EventChannelItem(event.clone());
         self.sender.send(channel_item).expect(&format!("VisualizerDataSender: sending event {} failed.", event));
     }

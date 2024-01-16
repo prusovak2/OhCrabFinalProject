@@ -1,7 +1,7 @@
 use OhCrab_collection::collection::CollectTool;
 use robotics_lib::{runner::{Robot, Runnable}, interface::Direction, world::tile::Content};
 
-use crate::oh_crab_visualizer::visualizer::{visualizable_interfaces::VisualizableInterfaces, visualizable_robot::{RobotCreator, Visulizable}, visualizer_event_listener::VisualizerEventListener};
+use crate::{oh_crab_visualizer::visualizer::{visualizable_interfaces::VisualizableInterfaces, visualizable_robot::{RobotCreator, Visulizable}, visualizer_event_listener::VisualizerEventListener}, println_d};
 
 pub struct ExampleRobot{
     properties: Robot,
@@ -56,11 +56,11 @@ impl ExampleRobot {
 
 impl Runnable for ExampleRobot {
     fn process_tick(&mut self, world: &mut robotics_lib::world::World) {
-        println!("TICK COUNT: {:?}", self.tick_counter);
+        println_d!("TICK COUNT: {:?}", self.tick_counter);
         self.tick_counter+=1;
 
         match VisualizableInterfaces::go(self, world, self.get_direction()) {
-            Ok((_, (y, x))) => {println!("Example robot: new position {:?}", (x,y))}
+            Ok((_, (y, x))) => { println_d!("Example robot: new position {:?}", (x,y));}
             Err(_) => {
                 self.change_direction();
                 println!("Example robot: changing direction: {:?}", self.get_direction())
@@ -74,7 +74,7 @@ impl Runnable for ExampleRobot {
     }
 
     fn handle_event(&mut self, event: robotics_lib::event::events::Event) {
-        println!("Example robot received event: {}", event);
+        println_d!("Example robot received event: {}", event);
         // BEWARE - for a visualizer to work it is neccessary to call this method from 
         // handle_event method of your robot
         self.visualizer_event_listener.handle_event(&event); 
