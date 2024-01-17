@@ -153,7 +153,6 @@ pub(super) fn draw_backpack(backpack: &HashMap<Content, usize>, canvas: &mut Can
         draw_text(canvas, x_backpack, y_backpack, text_color, text_size, format!("{}({})", content.to_string(), amount));
         y_backpack += text_size * 1.1;
     }
-
 }
 
 fn draw_robot(robot_position: &Coord, ctx: &mut Context, canvas: &mut Canvas, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32) -> Result<(), OhCrabVisualizerError> {

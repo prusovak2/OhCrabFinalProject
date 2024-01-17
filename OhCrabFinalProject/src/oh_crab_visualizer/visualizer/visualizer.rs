@@ -59,6 +59,7 @@ impl WorldState {
 pub(super) struct VisualizationState {
     offset_x: f32,
     offset_y: f32,
+    should_focus_on_robot: bool,
 
     pub(super)grid_canvas_properties: GridCanvasProperties
 }
@@ -176,13 +177,17 @@ impl OhCrabVisualizer {
         let res = self.runner.game_tick();
         self.tick_counter += 1;
         match res {
-            Ok(_) => Ok(()),
+            Ok(_) => {
+                if self.visualization_state.should_focus_on_robot {
+                    self.focus_on_robot();
+                }
+                Ok(())
+            },
             Err(robot_err) => { return Err(OhCrabVisualizerError::RobotLibError(robot_err)); } 
         } 
     }
 
     fn init_state(&mut self, canvas_size: f32)  -> Result<(), OhCrabVisualizerError> {
-        println_d!("MY awesome macro {} {}.", 42, 73);
         println_d!("VISUALIZER UPDATE, doing first world tick.");
         self.do_world_tick()?;
         let received_map = self.map_receiver.try_recv();
@@ -190,11 +195,10 @@ impl OhCrabVisualizer {
             Ok(map_item) => {
                 self.visualization_state.grid_canvas_properties = GridCanvasProperties::build(canvas_size, map_item.map.world_map.len());
                 let robot_pos = map_item.map.robot_position;
-                self.focus_on_robot();
                 println_d!("VISUALIZER RECEIVED MAP with robot position {:?}", (robot_pos.x, robot_pos.y));
                 self.world_state.world_map = Some(map_item.map.world_map);
                 self.world_state.robot_position = Some(robot_pos);
-                
+                self.focus_on_robot();
                 Ok(())
             }
             Err(_) => todo!(),
@@ -203,6 +207,8 @@ impl OhCrabVisualizer {
 
     fn focus_on_robot(&mut self) {
         if let Some(robot_pos) = &self.world_state.robot_position{
+            println!("Focusing on robot on position {:?}", robot_pos);
+            println!("rows to display: {} columns to display: {}", self.visualization_state.grid_canvas_properties.num_rows_to_display(), self.visualization_state.grid_canvas_properties.num_columns_to_display() );
             self.visualization_state.offset_x = (robot_pos.x  - (self.visualization_state.grid_canvas_properties.num_columns_to_display() / 2 )) as f32;
             self.visualization_state.offset_y = (robot_pos.y  - (self.visualization_state.grid_canvas_properties.num_rows_to_display() / 2 )) as f32;
         }
@@ -218,10 +224,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
             let size = f32::min(x, y);
             self.init_state(size)?;
         }
-
-
-        let gui = &mut self.gui;
-        let gui_ctx = &gui.ctx();
+        
         // egui::Window::new("UI").show(&gui_ctx, |ui| {
         //     ui.label("a very nice gui :3");
         //     if ui.button("print \"hello world\"").clicked() {
@@ -233,7 +236,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
         // });
         // gui.update(ctx);
        
-
+        let gui_ctx = &mut self.gui.ctx();
         egui::Window::new("Scroll world").show(&gui_ctx, |ui| {
             if let Some(world_map) = &self.world_state.world_map {
                 let scroll_limit_x = (world_map.len() - usize::min(world_map.len(), self.visualization_state.grid_canvas_properties.num_columns_to_display() as usize)) as f32;
@@ -241,8 +244,11 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
                 ui.add(egui::Slider::new(&mut self.visualization_state.offset_x, 0.0..=scroll_limit_x));
                 ui.add(egui::Slider::new(&mut self.visualization_state.offset_y, scroll_limit_y..=0.0).orientation(egui::SliderOrientation::Vertical));
                 ui.add(egui::Slider::new(&mut self.visualization_state.grid_canvas_properties.tile_size, TILE_SIZE_MIN..=TILE_SIZE_MAX));
+                ui.add(egui::Checkbox::new(&mut self.visualization_state.should_focus_on_robot, "Focus on robot"));
             }
-            
+            if ui.add(egui::Button::new("Center on robot")).clicked() {
+                self.focus_on_robot();
+            }
             //ui.add(egui::DragValue::new(&mut self.offset_x));
             //ui.heading("Press/Hold/Release example. Press A to test.");
             // ScrollArea::vertical()
@@ -263,7 +269,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
                 println!("Left is released");
             }
         });
-        gui.update(ctx);
+        self.gui.update(ctx);
 
         if self.tick_counter >= self.total_ticks {
             //_ctx.request_quit();
