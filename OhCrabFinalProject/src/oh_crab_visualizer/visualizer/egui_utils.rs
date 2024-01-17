@@ -5,7 +5,7 @@ use egui_extras::{TableBuilder, Column};
 use ggegui::{GuiContext, egui::{self, Layout}};
 use robotics_lib::world::tile::Content;
 
-use super::{visualizer::VisualizationState, draw_utils::get_content_string};
+use super::{visualizer::{VisualizationState, GRID_CANVAS_ORIGIN_X}, draw_utils::get_content_string};
 
 pub(super) struct EguiImages<'a> {
     content_images:HashMap<Content, Image<'a>>,
@@ -38,9 +38,9 @@ impl<'a> EguiImages<'a> {
 
 pub(super) fn draw_backpack(gui_ctx: &mut GuiContext, visualizatio_state: &VisualizationState, backpack: &HashMap<Content, usize>, egui_images: &EguiImages) {
     egui::Window::new("Backpack")
-        .default_pos((visualizatio_state.grid_canvas_properties.grid_canvas_width, 40.0))
+        .default_pos((visualizatio_state.grid_canvas_properties.grid_canvas_origin_x + visualizatio_state.grid_canvas_properties.grid_canvas_width + 40.0, 15.0))
         .show(&gui_ctx, |ui| {
-            let mut table = TableBuilder::new(ui)
+            let table = TableBuilder::new(ui)
             .striped(true)
             .resizable(false)
             .cell_layout(Layout::left_to_right(egui::Align::Center))

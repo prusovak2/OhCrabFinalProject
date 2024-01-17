@@ -419,7 +419,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
             canvas.draw(&self.gui, DrawParam::default().dest(glam::Vec2::new(400.0, 400.0)));
             
             //backpack
-            draw_utils::draw_backpack(&self.world_state.backpack, &mut canvas, tile_size, world_dimension);
+            //draw_utils::draw_backpack(&self.world_state.backpack, &mut canvas, tile_size, world_dimension);
 
             let x_tick_count = (tile_size * world_dimension as f32) + (tile_size*3.0);
             let y_tick_count = tile_size;
