@@ -3,16 +3,113 @@ use std::collections::HashMap;
 use ggez::{graphics::{Canvas, Color, self, TextFragment}, Context, glam};
 use robotics_lib::world::tile::{Tile, TileType, Content};
 
-use super::{Coord, visualizer::OhCrabVisualizerError};
+use crate::println_d;
 
-pub(super) fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: usize, y:usize, tile_size: f32) -> Result<(), OhCrabVisualizerError> {
+use super::{Coord, visualizer::{OhCrabVisualizerError, self, CONTENT_TILE_SIZE_LIMIT, VisualizationState}};
+
+#[derive(Default)]
+pub(super) struct GridCanvasProperties {
+    pub(super) tile_size: f32,
+    pub(super) grid_canvas_width: f32, 
+    pub(super) grid_canvas_height: f32,
+    pub(super) grid_canvas_origin_x: f32,
+    pub(super) grid_canvas_origin_y: f32,
+    pub(super) world_dimension: usize
+}
+
+impl GridCanvasProperties {
+    pub(super) fn num_rows_to_display(&self) -> usize {
+        (self.grid_canvas_height / self.tile_size).floor() as usize
+    }
+
+    pub(super) fn num_columns_to_display(&self) -> usize {
+        (self.grid_canvas_width / self.tile_size).floor() as usize
+    }
+
+    pub(super) fn build(canvas_total_size: f32, world_dimension: usize) -> GridCanvasProperties {
+        GridCanvasProperties {
+            tile_size: visualizer::DEFAULT_TILE_SIZE,
+            grid_canvas_height: canvas_total_size - 80.0,
+            grid_canvas_width: canvas_total_size - 80.0,
+            grid_canvas_origin_x: visualizer::GRID_CANVAS_ORIGIN_X,
+            grid_canvas_origin_y: visualizer::GRID_CANVAS_ORIGIN_Y,
+            world_dimension
+        }
+    } 
+}
+
+pub(super) fn draw_grid(
+        ctx: &mut ggez::Context,
+        canvas: &mut Canvas,
+        visualization_state: &VisualizationState,
+        world_map: &Vec<Vec<Tile>>,
+        robot_position: &Option<Coord>
+    ) 
+    -> Result<(), OhCrabVisualizerError> {
+
+    let world_dimension = world_map.len();
+    let last_column = visualization_state.get_last_column_to_display();
+    let last_row = visualization_state.get_last_row_to_display();
+    let tile_offset_x = visualization_state.first_column_to_display();
+    let tile_offset_y = visualization_state.first_row_to_display();
+    let tile_size = visualization_state.grid_canvas_properties.tile_size;
+    let canvas_origin_x = visualization_state.grid_canvas_properties.grid_canvas_origin_x;
+    let canvas_origin_y = visualization_state.grid_canvas_properties.grid_canvas_origin_y;
+
+    // let rows_to_display = canvas_props.num_rows_to_display();
+    // let columns_to_display = canvas_props.num_columns_to_display();
+
+    // let last_column = usize::min(world_dimension, tile_offset.x + (columns_to_display as usize));
+    // let last_row = usize::min(world_dimension, tile_offset.y + (rows_to_display as usize));
+
+    draw_grid_frame(ctx, canvas, &visualization_state.grid_canvas_properties)?;
+
+    for y in tile_offset_y..last_row {
+        for x in tile_offset_x..last_column {
+            let tile: &Tile = &world_map[y][x]; 
+            draw_tile(tile, ctx, canvas, (x-tile_offset_x) as f32, (y-tile_offset_y) as f32,  tile_size, canvas_origin_x, canvas_origin_y)?;
+        }
+    }
+
+    // robot
+    if let Some(robot_position) = robot_position {
+        if visualization_state.robot_should_be_displaied(robot_position) {
+            let robot_position_on_canvas = Coord {x: robot_position.x - tile_offset_x, y: robot_position.y - tile_offset_y };
+            draw_robot(&robot_position_on_canvas, ctx, canvas, tile_size, canvas_origin_x, canvas_origin_y)?;
+        }
+    }
+    Ok(())
+}
+
+fn draw_grid_frame(ctx: &mut Context, canvas: &mut Canvas, canvas_props: &GridCanvasProperties) -> Result<(), OhCrabVisualizerError> {
+    let res = graphics::Mesh::new_rectangle(
+        ctx,
+        graphics::DrawMode::fill(),
+        graphics::Rect::new(
+            canvas_props.grid_canvas_origin_x - visualizer::GRID_FRAME_WIDTH,
+            canvas_props.grid_canvas_origin_y - visualizer::GRID_FRAME_WIDTH,
+            canvas_props.grid_canvas_width + (visualizer::GRID_FRAME_WIDTH * 2.0),
+            canvas_props.grid_canvas_width  + (visualizer::GRID_FRAME_WIDTH * 2.0),
+        ),
+        Color::from_rgb(128, 128, 128)
+    );
+    match res {
+        Ok(rect) => {
+            canvas.draw(&rect, graphics::DrawParam::default());
+            Ok(())
+        }
+        Err(error) => Err(OhCrabVisualizerError::GraphicsLibraryError(error))
+    }
+}
+
+pub fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: f32, y :f32, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32) -> Result<(), OhCrabVisualizerError> {    
     let color = get_tile_color(&tile.tile_type);
     let res = graphics::Mesh::new_rectangle(
         ctx,
         graphics::DrawMode::fill(),
         graphics::Rect::new(
-            x as f32 * tile_size,
-            y as f32 * tile_size,
+            (x * tile_size) + grid_canvas_origin_x,
+            (y * tile_size) + grid_canvas_origin_y,
             tile_size,
             tile_size,
         ),
@@ -22,29 +119,27 @@ pub(super) fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: 
     match res {
         Ok(rect) => {
             canvas.draw(&rect, graphics::DrawParam::default());
-
-            // TODO: use draw_text fn
-            let center_x = (x as f32 + 0.05) * tile_size;
-            let center_y = (y as f32 + 0.75) * tile_size;
-            let text_size = tile_size * 0.18;
-            let dest_point = ggez::glam::Vec2::new(center_x, center_y);
-            let text_color = invert_color(&color);
-            let text_fragment = TextFragment{
-                color: Some(text_color),
-                text: get_content_string(&tile.content),
-                font: None,
-                scale: None
-            };
-            canvas.draw(
-                graphics::Text::new(text_fragment)
-                    .set_scale(text_size),
-                dest_point,
-            );
+            if tile_size >= CONTENT_TILE_SIZE_LIMIT {
+                draw_tile_content(canvas, &tile.content, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, color);
+            }
             Ok(())
         }
         Err(error) => Err(OhCrabVisualizerError::GraphicsLibraryError(error))
     }
-    
+}
+
+pub fn draw_tile_content(canvas: &mut Canvas, content: &Content, x: f32, y:f32, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32, color: Color) {
+    let text_x = ((x + 0.05) * tile_size) + grid_canvas_origin_x;
+    let text_y: f32 = ((y + 0.75) * tile_size) + grid_canvas_origin_y;
+    let text_size = tile_size * 0.18;
+    let text_color = invert_color(&color);
+
+    draw_content(canvas, content, text_x, text_y, text_size, text_color);
+}
+
+pub(crate) fn draw_content(canvas: &mut Canvas, content: &Content, x: f32, y:f32, size: f32, color: Color) {
+    let text = get_content_string(content);
+    draw_text(canvas, x, y, color, size, text)
 }
 
 pub(super) fn draw_backpack(backpack: &HashMap<Content, usize>, canvas: &mut Canvas, tile_size: f32, world_dimension:usize) {
@@ -60,11 +155,11 @@ pub(super) fn draw_backpack(backpack: &HashMap<Content, usize>, canvas: &mut Can
     }
 }
 
-pub(super) fn draw_robot(robot_position: &Coord, ctx: &mut Context, canvas: &mut Canvas, tile_size: f32) -> Result<(), OhCrabVisualizerError> {
+fn draw_robot(robot_position: &Coord, ctx: &mut Context, canvas: &mut Canvas, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32) -> Result<(), OhCrabVisualizerError> {
     let x = robot_position.x;
     let y = robot_position.y;
-    let center_x = (x as f32 + 0.25) * tile_size;
-    let center_y = (y as f32 + 0.25) * tile_size;
+    let center_x = ((x as f32 + 0.25) * tile_size) + grid_canvas_origin_x;
+    let center_y = (y as f32 + 0.25) * tile_size + grid_canvas_origin_y;
 
     let circle_radius = tile_size * 0.2;
 
