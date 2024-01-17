@@ -14,7 +14,7 @@ pub(super) const TILE_SIZE_MIN:f32 = 5.0;
 pub(super) const TILE_SIZE_MAX:f32 = 120.8;
 pub(super) const CONTENT_TILE_SIZE_LIMIT:f32 = 30.0;
 
-pub(super) const TILE_SIZE:f32 = 60.4;
+pub(super) const DEFAULT_TILE_SIZE:f32 = 60.4;
 pub(super) const GRID_FRAME_WIDTH: f32 = 20.0;
 pub(super) const GRID_CANVAS_ORIGIN_X: f32 = 200.0 + GRID_FRAME_WIDTH;
 pub(super) const GRID_CANVAS_ORIGIN_Y: f32 = 0.0 + GRID_FRAME_WIDTH;
@@ -213,6 +213,13 @@ impl OhCrabVisualizer {
             self.visualization_state.offset_y = (robot_pos.y  - (self.visualization_state.grid_canvas_properties.num_rows_to_display() / 2 )) as f32;
         }
     }
+
+    fn zoom_on_robot(&mut self) {
+        if let Some(_) = &self.world_state.robot_position{
+            self.visualization_state.grid_canvas_properties.tile_size = DEFAULT_TILE_SIZE;
+            self.focus_on_robot();
+        }
+    }
 }
 
 impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
@@ -248,6 +255,9 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
             }
             if ui.add(egui::Button::new("Center on robot")).clicked() {
                 self.focus_on_robot();
+            }
+            if ui.add(egui::Button::new("Zoom on robot")).clicked() {
+                self.zoom_on_robot();
             }
             //ui.add(egui::DragValue::new(&mut self.offset_x));
             //ui.heading("Press/Hold/Release example. Press A to test.");

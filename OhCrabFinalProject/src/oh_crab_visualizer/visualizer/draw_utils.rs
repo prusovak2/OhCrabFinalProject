@@ -28,7 +28,7 @@ impl GridCanvasProperties {
 
     pub(super) fn build(canvas_total_size: f32, world_dimension: usize) -> GridCanvasProperties {
         GridCanvasProperties {
-            tile_size: visualizer::TILE_SIZE,
+            tile_size: visualizer::DEFAULT_TILE_SIZE,
             grid_canvas_height: canvas_total_size - 80.0,
             grid_canvas_width: canvas_total_size - 80.0,
             grid_canvas_origin_x: visualizer::GRID_CANVAS_ORIGIN_X,
