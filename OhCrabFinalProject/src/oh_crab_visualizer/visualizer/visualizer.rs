@@ -1,4 +1,4 @@
-use std::{sync::mpsc::{Receiver, self}, collections::HashMap, default};
+use std::{sync::mpsc::{Receiver, self}, collections::HashMap, default, cmp::min};
 
 use ggegui::{egui::{self, ScrollArea, Key}, Gui};
 use ggez::{event::{EventHandler, self}, timer, graphics::{self, Color, DrawParam}, GameError, Context, glam, input::gamepad::gilrs::GilrsBuilder};
@@ -88,6 +88,12 @@ impl VisualizationState {
             && robot_position.x < self.get_last_column_to_display()
             && robot_position.y >= self.first_row_to_display()
             && robot_position.y < self.get_last_row_to_display() 
+    }
+
+    fn get_scroll_limit(&self, world_dimenstion: usize) -> (f32, f32) {
+        let scroll_limit_x = (world_dimenstion - usize::min(world_dimenstion, self.grid_canvas_properties.num_columns_to_display())) as f32;
+        let scroll_limit_y = (world_dimenstion - usize::min(world_dimenstion, self.grid_canvas_properties.num_rows_to_display())) as f32;
+        (scroll_limit_x, scroll_limit_y)
     }
 }
 
@@ -246,8 +252,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
         let gui_ctx = &mut self.gui.ctx();
         egui::Window::new("Scroll world").show(&gui_ctx, |ui| {
             if let Some(world_map) = &self.world_state.world_map {
-                let scroll_limit_x = (world_map.len() - usize::min(world_map.len(), self.visualization_state.grid_canvas_properties.num_columns_to_display() as usize)) as f32;
-                let scroll_limit_y = (world_map.len() - usize::min(world_map.len(), self.visualization_state.grid_canvas_properties.num_rows_to_display() as usize)) as f32;
+                let (scroll_limit_x, scroll_limit_y) = self.visualization_state.get_scroll_limit(world_map.len());
                 ui.add(egui::Slider::new(&mut self.visualization_state.offset_x, 0.0..=scroll_limit_x));
                 ui.add(egui::Slider::new(&mut self.visualization_state.offset_y, scroll_limit_y..=0.0).orientation(egui::SliderOrientation::Vertical));
                 ui.add(egui::Slider::new(&mut self.visualization_state.grid_canvas_properties.tile_size, TILE_SIZE_MIN..=TILE_SIZE_MAX));
@@ -281,6 +286,13 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
         });
         self.gui.update(ctx);
 
+        // move camera if the world is zoomed out
+        if let Some(world_map) = &self.world_state.world_map {
+            let (scroll_limit_x, scroll_limit_y) = self.visualization_state.get_scroll_limit(world_map.len());
+            self.visualization_state.offset_x = f32::min(self.visualization_state.offset_x, scroll_limit_x);
+            self.visualization_state.offset_y = f32::min(self.visualization_state.offset_y, scroll_limit_y);
+        }
+        
         if self.tick_counter >= self.total_ticks {
             //_ctx.request_quit();
             println_d!("empty update");
