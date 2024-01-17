@@ -35,7 +35,7 @@ pub struct OhCrabVisualizer {
     // state
     tick_counter: usize,
     world_state: WorldState,
-
+    world_tick_in_progress: bool,
     visualization_state: VisualizationState
 }
 
@@ -150,7 +150,8 @@ impl OhCrabVisualizer {
             delay_in_milis: config.delay_in_milis,
             tick_counter: 0,
             world_state: WorldState::empty(),
-            visualization_state: VisualizationState::default()
+            visualization_state: VisualizationState::default(),
+            world_tick_in_progress: false
         }
     }
 
@@ -187,6 +188,7 @@ impl OhCrabVisualizer {
                 if self.visualization_state.should_focus_on_robot {
                     self.focus_on_robot();
                 }
+                self.world_tick_in_progress = true;
                 Ok(())
             },
             Err(robot_err) => { return Err(OhCrabVisualizerError::RobotLibError(robot_err)); } 
@@ -263,6 +265,19 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
             }
             if ui.add(egui::Button::new("Zoom on robot")).clicked() {
                 self.zoom_on_robot();
+            }
+
+            if self.interactive_mode {
+                if self.world_tick_in_progress {
+                    if ui.add_enabled(false, egui::Button::new("Tick in progress")).clicked() {
+                        unreachable!();
+                    }
+                }
+                else {
+                    if ui.add(egui::Button::new("Do tick")).clicked() {
+                        self.do_world_tick();
+                    }
+                }
             }
             //ui.add(egui::DragValue::new(&mut self.offset_x));
             //ui.heading("Press/Hold/Release example. Press A to test.");
@@ -343,7 +358,10 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
             }
             Err(std::sync::mpsc::TryRecvError::Empty) => {
                 println_d!("VISUALIZER: channel empty, execution another world tick.");
-                self.do_world_tick()?;
+                self.world_tick_in_progress = false;
+                if !self.interactive_mode {
+                    self.do_world_tick()?;
+                }
             }
             Err(error) => {
                 println_d!("VISUALIZER: try receive error: {:?}.", error);
