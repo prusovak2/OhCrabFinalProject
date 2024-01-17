@@ -3,6 +3,7 @@ use std::{sync::mpsc::{Receiver, self}, collections::HashMap, default, cmp::min}
 use ggegui::{egui::{self, ScrollArea, Key}, Gui};
 use ggez::{event::{EventHandler, self}, timer, graphics::{self, Color, DrawParam}, GameError, Context, glam, input::gamepad::gilrs::GilrsBuilder};
 use oxagworldgenerator::world_generator::OxAgWorldGenerator;
+use rand::distributions::weighted::alias_method;
 use robotics_lib::{runner::Runner, utils::LibError as RobotError, event::events::Event as RobotEvent, world::tile::{Tile, Content}};
 use rstykrab_cache::Cache;
 
@@ -28,8 +29,7 @@ pub struct OhCrabVisualizer {
     gui: Gui,
 
     // configuration
-    interactive_mode: bool,
-    total_ticks: usize,
+    run_mode: RunMode,
     delay_in_milis: u64,
 
     // state
@@ -101,7 +101,8 @@ impl VisualizationState {
 pub enum OhCrabVisualizerError {
     RobotLibError(RobotError),
     DataError(DataChannelError),
-    GraphicsLibraryError(GameError)
+    GraphicsLibraryError(GameError),
+    ConfigurationError(String)
 }
 
 #[derive(Debug)]
@@ -110,18 +111,21 @@ pub enum DataChannelError {
     StateMissingError(String)
 }
 
+pub enum RunMode {
+    Interactive,
+    NonInteractive(usize) // simulate `usize` steps
+}
+
 pub struct OhCrabVisualizerConfig {
-    num_ticks: usize, 
-    interactive_mode: bool,
+    run_mode: RunMode,
     use_sound: bool,
     delay_in_milis: u64,
 }
 
 impl OhCrabVisualizerConfig {
-    pub fn new(num_steps: usize, interactive_mode: bool, use_sound: bool, delay_in_milis: u64) -> Self {
+    pub fn new(run_mode: RunMode, use_sound: bool, delay_in_milis: u64) -> Self {
         OhCrabVisualizerConfig {
-            num_ticks: num_steps,
-            interactive_mode,
+            run_mode,
             use_sound,
             delay_in_milis
         }
@@ -145,8 +149,7 @@ impl OhCrabVisualizer {
             map_receiver,
             action_cache: Cache::new(10),
             gui: Gui::default(),
-            interactive_mode: config.interactive_mode,
-            total_ticks:  config.num_ticks,
+            run_mode: config.run_mode,
             delay_in_milis: config.delay_in_milis,
             tick_counter: 0,
             world_state: WorldState::empty(),
@@ -156,13 +159,19 @@ impl OhCrabVisualizer {
     }
 
     pub fn simulate(&mut self) -> Result<(), OhCrabVisualizerError> {
-        for _ in 0..self.total_ticks {
-            match self.runner.game_tick() {
-                Ok(_) => {}
-                Err(robot_err) => { return Err(OhCrabVisualizerError::RobotLibError(robot_err)); } 
-            } 
+        match self.run_mode {
+            RunMode::Interactive => Err(OhCrabVisualizerError::ConfigurationError("Cannot run simulation on interactively configured visualizer. To run simulation, set run_mode to RunMode::Noninteractive(total_ticks)".to_string())),
+            RunMode::NonInteractive(total_ticks) => {
+                for _ in 0..total_ticks {
+                    match self.runner.game_tick() {
+                        Ok(_) => {}
+                        Err(robot_err) => { return Err(OhCrabVisualizerError::RobotLibError(robot_err)); } 
+                    } 
+                }
+                Ok(())
+            }
         }
-        Ok(())
+        
     }
 
     pub fn run(mut self) -> Result<(), OhCrabVisualizerError> {
@@ -215,8 +224,8 @@ impl OhCrabVisualizer {
 
     fn focus_on_robot(&mut self) {
         if let Some(robot_pos) = &self.world_state.robot_position{
-            println!("Focusing on robot on position {:?}", robot_pos);
-            println!("rows to display: {} columns to display: {}", self.visualization_state.grid_canvas_properties.num_rows_to_display(), self.visualization_state.grid_canvas_properties.num_columns_to_display() );
+            println_d!("Focusing on robot on position {:?}", robot_pos);
+            println_d!("rows to display: {} columns to display: {}", self.visualization_state.grid_canvas_properties.num_rows_to_display(), self.visualization_state.grid_canvas_properties.num_columns_to_display() );
             self.visualization_state.offset_x = (robot_pos.x  - (self.visualization_state.grid_canvas_properties.num_columns_to_display() / 2 )) as f32;
             self.visualization_state.offset_y = (robot_pos.y  - (self.visualization_state.grid_canvas_properties.num_rows_to_display() / 2 )) as f32;
         }
@@ -228,11 +237,25 @@ impl OhCrabVisualizer {
             self.focus_on_robot();
         }
     }
+
+    fn simulation_should_end(&self) -> bool {
+        match self.run_mode {
+            RunMode::Interactive => false,
+            RunMode::NonInteractive(total_ticks) => self.tick_counter >= total_ticks,
+        }
+    }
+
+    fn is_interactive(&self) -> bool {
+        match self.run_mode {
+            RunMode::Interactive => true,
+            RunMode::NonInteractive(_) => false,
+        }
+    }
 }
 
 impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
     fn update(&mut self, ctx: &mut ggez::Context) -> Result<(), OhCrabVisualizerError> {
-        println_d!("VISUALIZER UPDATE, TICK COUNT: {} (total ticks {})", self.tick_counter, self.total_ticks);
+        println_d!("VISUALIZER UPDATE, TICK COUNT: {}", self.tick_counter);
 
         if self.tick_counter == 0 {
             let (x, y) = ctx.gfx.size();
@@ -267,7 +290,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
                 self.zoom_on_robot();
             }
 
-            if self.interactive_mode {
+            if self.is_interactive() {
                 if self.world_tick_in_progress {
                     if ui.add_enabled(false, egui::Button::new("Tick in progress")).clicked() {
                         unreachable!();
@@ -308,7 +331,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
             self.visualization_state.offset_y = f32::min(self.visualization_state.offset_y, scroll_limit_y);
         }
         
-        if self.tick_counter >= self.total_ticks {
+        if self.simulation_should_end() {
             //_ctx.request_quit();
             println_d!("empty update");
             return Ok(());
@@ -359,7 +382,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
             Err(std::sync::mpsc::TryRecvError::Empty) => {
                 println_d!("VISUALIZER: channel empty, execution another world tick.");
                 self.world_tick_in_progress = false;
-                if !self.interactive_mode {
+                if !self.is_interactive() {
                     self.do_world_tick()?;
                 }
             }
@@ -413,7 +436,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
             let text_size = tile_size * 0.18;
             draw_utils::draw_text(&mut  canvas, x_tick_count, y_tick_count, Color::WHITE, text_size, format!("TICK: {}", self.tick_counter));
 
-            if self.tick_counter >= self.total_ticks {
+            if self.simulation_should_end() {
                 draw_utils::draw_text(&mut  canvas, x_tick_count, y_tick_count + text_size * 1.2, Color::WHITE, text_size, format!("SIMULATION DONE"));
             }
 
