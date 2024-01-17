@@ -37,9 +37,9 @@ impl ExampleRobot {
     fn int_to_direction(number: i32) -> Direction {
         let modulo =  number % 4;
         match modulo {
-            0 => Direction::Down,
-            1 => Direction::Left,
-            2 => Direction::Up,
+            0 => Direction::Left,
+            1 => Direction::Up,
+            2 => Direction::Down,
             3 => Direction::Right,
             _ => panic!("Logic error: modulo 4")
         }
@@ -71,6 +71,26 @@ impl Runnable for ExampleRobot {
             Ok(_) => {}
             Err(error) => println!("Example robot: collect error {:?}", error)
         }
+
+        match CollectTool::collect_instantly_reachable(self, world, &Content::Fish(1)){
+            Ok(_) => {}
+            Err(error) => println!("Example robot: collect error {:?}", error)
+        }
+
+        match CollectTool::collect_instantly_reachable(self, world, &Content::Coin(1)){
+            Ok(_) => {}
+            Err(error) => println!("Example robot: collect error {:?}", error)
+        }
+
+        match CollectTool::collect_instantly_reachable(self, world, &Content::Water(1)){
+            Ok(_) => {}
+            Err(error) => println!("Example robot: collect error {:?}", error)
+        }
+
+        // match CollectTool::collect_content(self, world, &Content::Water(0), 42, 40){
+        //     Ok(_) => {}
+        //     Err(error) => println!("Example robot: collect error {:?}", error)
+        // }
     }
 
     fn handle_event(&mut self, event: robotics_lib::event::events::Event) {

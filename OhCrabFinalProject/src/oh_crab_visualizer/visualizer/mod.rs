@@ -7,6 +7,7 @@ pub mod visualizable_robot;
 pub mod visualizable_interfaces;
 pub mod visualizer;
 mod draw_utils;
+mod egui_utils;
 pub mod visualizer_event_listener;
 mod visualizer_debug;
 

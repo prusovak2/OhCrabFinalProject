@@ -143,7 +143,7 @@ pub(crate) fn draw_content(canvas: &mut Canvas, content: &Content, x: f32, y:f32
 }
 
 pub(super) fn draw_backpack(backpack: &HashMap<Content, usize>, canvas: &mut Canvas, tile_size: f32, world_dimension:usize) {
-    let x_backpack = (tile_size * world_dimension as f32) + (tile_size);
+    let x_backpack = (tile_size * world_dimension as f32) + (tile_size) + 200.0;
     let mut y_backpack = tile_size;
     let text_size = tile_size * 0.2;
     let text_color = Color::WHITE;
@@ -211,7 +211,7 @@ fn get_tile_color(tile_type: &TileType) -> Color {
     }
 }
 
-fn get_content_string(content: &Content) -> String {
+pub(super) fn get_content_string(content: &Content) -> String {
     match content {
         Content::Rock(val) => format!("Rock({})", val),
         Content::Tree(val) => format!("Tree({})", val),
