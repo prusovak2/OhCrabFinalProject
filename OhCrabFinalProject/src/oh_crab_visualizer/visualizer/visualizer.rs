@@ -1,5 +1,6 @@
 use std::{sync::mpsc::{Receiver, self}, collections::HashMap, default, cmp::min};
 
+use egui_extras::install_image_loaders;
 use ggegui::{egui::{self, ScrollArea, Key}, Gui};
 use ggez::{event::{EventHandler, self}, timer, graphics::{self, Color, DrawParam}, GameError, Context, glam, input::gamepad::gilrs::GilrsBuilder};
 use oxagworldgenerator::world_generator::OxAgWorldGenerator;
@@ -7,9 +8,9 @@ use rand::distributions::weighted::alias_method;
 use robotics_lib::{runner::Runner, utils::LibError as RobotError, event::events::Event as RobotEvent, world::tile::{Tile, Content}};
 use rstykrab_cache::Cache;
 
-use crate::{oh_crab_visualizer::visualizer::{draw_utils::{self, GridCanvasProperties}, visualizer_debug}, println_d};
+use crate::{oh_crab_visualizer::visualizer::{draw_utils::{self, GridCanvasProperties}, visualizer_debug, egui_utils}, println_d};
 
-use super::{visualizable_robot::{VisualizableRobot, RobotCreator, MapChannelItem}, Coord, visualizer_event_listener::{VisualizerEventListener, ChannelItem}};
+use super::{visualizable_robot::{VisualizableRobot, RobotCreator, MapChannelItem}, Coord, visualizer_event_listener::{VisualizerEventListener, ChannelItem}, egui_utils::EguiImages};
 
 pub(super) const TILE_SIZE_MIN:f32 = 5.0;
 pub(super) const TILE_SIZE_MAX:f32 = 120.8;
@@ -27,6 +28,7 @@ pub struct OhCrabVisualizer {
     action_cache: Cache,
     
     gui: Gui,
+    egui_images: EguiImages<'static>,
 
     // configuration
     run_mode: RunMode,
@@ -154,7 +156,8 @@ impl OhCrabVisualizer {
             tick_counter: 0,
             world_state: WorldState::empty(),
             visualization_state: VisualizationState::default(),
-            world_tick_in_progress: false
+            world_tick_in_progress: false,
+            egui_images: EguiImages::init()
         }
     }
 
@@ -171,7 +174,6 @@ impl OhCrabVisualizer {
                 Ok(())
             }
         }
-        
     }
 
     pub fn run(mut self) -> Result<(), OhCrabVisualizerError> {
@@ -207,7 +209,24 @@ impl OhCrabVisualizer {
     fn init_state(&mut self, canvas_size: f32)  -> Result<(), OhCrabVisualizerError> {
         println_d!("VISUALIZER UPDATE, doing first world tick.");
         self.do_world_tick()?;
+        install_image_loaders(&self.gui.ctx());
         let received_map = self.map_receiver.try_recv();
+
+        // self.world_state.backpack.insert(Content::Rock(0), 5);
+        // self.world_state.backpack.insert(Content::Tree(0), 3);
+        // self.world_state.backpack.insert(Content::Garbage(0), 10);
+        // self.world_state.backpack.insert(Content::Fire, 1);
+        // self.world_state.backpack.insert(Content::Coin(0), 50);
+        // self.world_state.backpack.insert(Content::Bin(0..10), 2);
+        // self.world_state.backpack.insert(Content::Crate(0..10), 3);
+        // self.world_state.backpack.insert(Content::Bank(0..10), 1);
+        // self.world_state.backpack.insert(Content::Water(0), 8);
+        // self.world_state.backpack.insert(Content::Market(0), 1);
+        // self.world_state.backpack.insert(Content::Fish(0), 15);
+        // self.world_state.backpack.insert(Content::Building, 2);
+        // self.world_state.backpack.insert(Content::Bush(0), 5);
+        // self.world_state.backpack.insert(Content::JollyBlock(0), 2);
+        // self.world_state.backpack.insert(Content::Scarecrow, 1);
         match received_map {
             Ok(map_item) => {
                 self.visualization_state.grid_canvas_properties = GridCanvasProperties::build(canvas_size, map_item.map.world_map.len());
@@ -226,8 +245,9 @@ impl OhCrabVisualizer {
         if let Some(robot_pos) = &self.world_state.robot_position{
             println_d!("Focusing on robot on position {:?}", robot_pos);
             println_d!("rows to display: {} columns to display: {}", self.visualization_state.grid_canvas_properties.num_rows_to_display(), self.visualization_state.grid_canvas_properties.num_columns_to_display() );
-            self.visualization_state.offset_x = (robot_pos.x  - (self.visualization_state.grid_canvas_properties.num_columns_to_display() / 2 )) as f32;
-            self.visualization_state.offset_y = (robot_pos.y  - (self.visualization_state.grid_canvas_properties.num_rows_to_display() / 2 )) as f32;
+            self.visualization_state.offset_x = f32::max(0.0, robot_pos.x as f32  - (self.visualization_state.grid_canvas_properties.num_columns_to_display() / 2 ) as f32);
+            self.visualization_state.offset_y = f32::max(0.0, robot_pos.y as f32 - (self.visualization_state.grid_canvas_properties.num_rows_to_display() / 2 ) as f32) ;
+            println_d!("Focused");
         }
     }
 
@@ -255,7 +275,7 @@ impl OhCrabVisualizer {
 
 impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
     fn update(&mut self, ctx: &mut ggez::Context) -> Result<(), OhCrabVisualizerError> {
-        println_d!("VISUALIZER UPDATE, TICK COUNT: {}", self.tick_counter);
+        //println_d!("VISUALIZER UPDATE, TICK COUNT: {}", self.tick_counter);
 
         if self.tick_counter == 0 {
             let (x, y) = ctx.gfx.size();
@@ -263,19 +283,9 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
             self.init_state(size)?;
         }
         
-        // egui::Window::new("UI").show(&gui_ctx, |ui| {
-        //     ui.label("a very nice gui :3");
-        //     if ui.button("print \"hello world\"").clicked() {
-        //         println!("hello world");
-        //     }
-        //     if ui.button("quit").clicked() {
-        //         ctx.request_quit();
-        //     }
-        // });
-        // gui.update(ctx);
-       
+        let mut res: Result<(), OhCrabVisualizerError> = Ok(());
         let gui_ctx = &mut self.gui.ctx();
-        egui::Window::new("Scroll world").show(&gui_ctx, |ui| {
+        egui::Window::new("Scroll world").show(&gui_ctx, |ui: &mut egui::Ui| {
             if let Some(world_map) = &self.world_state.world_map {
                 let (scroll_limit_x, scroll_limit_y) = self.visualization_state.get_scroll_limit(world_map.len());
                 ui.add(egui::Slider::new(&mut self.visualization_state.offset_x, 0.0..=scroll_limit_x));
@@ -298,31 +308,28 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
                 }
                 else {
                     if ui.add(egui::Button::new("Do tick")).clicked() {
-                        self.do_world_tick();
+                        res = self.do_world_tick();
                     }
                 }
             }
-            //ui.add(egui::DragValue::new(&mut self.offset_x));
-            //ui.heading("Press/Hold/Release example. Press A to test.");
-            // ScrollArea::vertical()
-            //     .auto_shrink([false, false])
-            //     .stick_to_bottom(true)
-            //     .show(ui, |ui| {
-            //         ui.label("abraka dabra");
-            //     });
-
-            if gui_ctx.input(|i| i.key_pressed(Key::ArrowLeft)) {
-                println!("Left pressed");
-            }
-            if gui_ctx.input(|i| i.key_down(Key::ArrowLeft)) {
-                println!("Left is down");
-                //ui.ctx().request_repaint(); // make sure we note the holding.
-            }
-            if gui_ctx.input(|i| i.key_released(Key::ArrowLeft)) {
-                println!("Left is released");
-            }
+            // if gui_ctx.input(|i| i.key_pressed(Key::ArrowLeft)) {
+            //     println!("Left pressed");
+            // }
+            // if gui_ctx.input(|i| i.key_down(Key::ArrowLeft)) {
+            //     println!("Left is down");
+            //     //ui.ctx().request_repaint(); // make sure we note the holding.
+            // }
+            // if gui_ctx.input(|i| i.key_released(Key::ArrowLeft)) {
+            //     println!("Left is released");
+            // }
         });
+
+        egui_utils::draw_backpack(gui_ctx, &self.visualization_state,&self.world_state.backpack, &self.egui_images);
+
         self.gui.update(ctx);
+        if res.is_err() {
+            return res;
+        }
 
         // move camera if the world is zoomed out
         if let Some(world_map) = &self.world_state.world_map {
@@ -337,7 +344,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
             return Ok(());
         }
 
-        println_d!("VISUALIZER UPDATE, receiving from robot channel.");
+        //println_d!("VISUALIZER UPDATE, receiving from robot channel.");
         let received_state = self.robot_receiver.try_recv();
 
         match received_state {
@@ -364,10 +371,22 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
                                 }
                             }
                             RobotEvent::AddedToBackpack(content, amount) => {
-                                println_d!("VISUALIZER: added to backpack.");
-                                *self.world_state.backpack.entry(content).or_insert(0) += amount;
+                                println_d!("VISUALIZER: added to backpack: {:?}, {:?}.", content, amount);
+                                *self.world_state.backpack.entry(content.clone()).or_insert(0) += amount;
+                                let amt = self.world_state.backpack.get(&content);
+                                println_d!("   current amount {:?} of {:?} after add", amt, content.to_string());
                             }
-                            // RobotEvent::RemovedFromBackpack(_, _) => todo!(),
+                            RobotEvent::RemovedFromBackpack(content, amount) => {
+                                println!("VISUALIZER: removed from backpack: {:?}, {:?}.", content, amount);
+                                if let Some(current_amount) = self.world_state.backpack.get_mut(&content) {
+                                    if *current_amount > amount {
+                                        *current_amount -= amount;
+                                        println_d!("   current amount {:?} of {:?} after remove", *current_amount, content.to_string());
+                                    } else {
+                                        self.world_state.backpack.remove(&content);
+                                    }
+                                }
+                            }
                             _ => {
                                 println_d!("VISUALIZER: {:?}", event);
                             }
@@ -380,7 +399,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
                 }
             }
             Err(std::sync::mpsc::TryRecvError::Empty) => {
-                println_d!("VISUALIZER: channel empty, execution another world tick.");
+                //println_d!("VISUALIZER: channel empty, execution another world tick.");
                 self.world_tick_in_progress = false;
                 if !self.is_interactive() {
                     self.do_world_tick()?;
@@ -397,39 +416,18 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
     fn draw(&mut self, ctx: &mut ggez::Context) -> Result<(), OhCrabVisualizerError> {
         // world map
         if let Some(world_map) = &self.world_state.world_map {
-            println_d!("draw");
             let mut canvas = graphics::Canvas::from_frame(ctx, graphics::Color::BLACK);
             
             let world_dimension = world_map.len();
             let (x, y) = ctx.gfx.size();
             let size = f32::min(x, y);
             let tile_size = 64 as f32; //(size / world_dimension as f32) - 10 as f32;
-            println_d!("TILE SIZE: {}", tile_size);
-
-            let tile_offset = Coord { x: f32::floor(self.visualization_state.offset_x) as usize, y: f32::floor(self.visualization_state.offset_y) as usize };
 
             draw_utils::draw_grid(ctx, &mut canvas, &self.visualization_state, world_map, &self.world_state.robot_position)?;
             canvas.draw(&self.gui, DrawParam::default().dest(glam::Vec2::new(400.0, 400.0)));
-
-            //canvas.draw(&self.gui, DrawParam::default().dest(glam::Vec2::new(grid_canvas_props.grid_canvas_width + 20.0, grid_canvas_props.grid_canvas_height - 20.0)));
-
-            // let world_grid_canvas = draw_utils::draw_grid(ctx, size as u32, size as u32, world_map, tile_size)?;
-            // canvas.draw(&world_grid_canvas, graphics::DrawParam::default());
-
-            // for y in 0..world_dimension {
-            //     for x in 0..world_dimension {
-            //         let tile: &Tile = &world_map[y][x]; 
-            //         draw_utils::draw_tile(tile, ctx, &mut canvas, x, y, tile_size)?;
-            //     }
-            // }
-
-            // // robot
-            // if let Some(robot_position) = &self.world_state.robot_position {
-            //     draw_utils::draw_robot(robot_position, ctx, &mut canvas, tile_size)?;
-            // }
             
             //backpack
-            draw_utils::draw_backpack(&self.world_state.backpack, &mut canvas, tile_size, world_dimension);
+            //draw_utils::draw_backpack(&self.world_state.backpack, &mut canvas, tile_size, world_dimension);
 
             let x_tick_count = (tile_size * world_dimension as f32) + (tile_size*3.0);
             let y_tick_count = tile_size;
