@@ -12,8 +12,9 @@ use super::{visualizable_robot::{VisualizableRobot, RobotCreator, MapChannelItem
 
 pub(super) const TILE_SIZE_MIN:f32 = 5.0;
 pub(super) const TILE_SIZE_MAX:f32 = 120.8;
+pub(super) const CONTENT_TILE_SIZE_LIMIT:f32 = 30.0;
 
-pub(super) const TILE_SIZE:f32 = 120.8;
+pub(super) const TILE_SIZE:f32 = 60.4;
 pub(super) const GRID_FRAME_WIDTH: f32 = 20.0;
 pub(super) const GRID_CANVAS_ORIGIN_X: f32 = 200.0 + GRID_FRAME_WIDTH;
 pub(super) const GRID_CANVAS_ORIGIN_Y: f32 = 0.0 + GRID_FRAME_WIDTH;
@@ -55,11 +56,38 @@ impl WorldState {
 }
 
 #[derive(Default)]
-struct VisualizationState {
+pub(super) struct VisualizationState {
     offset_x: f32,
     offset_y: f32,
 
-    grid_canvas_properties: GridCanvasProperties
+    pub(super)grid_canvas_properties: GridCanvasProperties
+}
+
+impl VisualizationState {
+    pub(super) fn get_last_column_to_display(&self) -> usize {
+        let columns_to_display = self.grid_canvas_properties.num_columns_to_display();
+        usize::min(self.grid_canvas_properties.world_dimension, self.first_column_to_display() + columns_to_display)
+    }
+
+    pub(super) fn get_last_row_to_display(&self) -> usize {
+        let rows_to_display = self.grid_canvas_properties.num_rows_to_display();
+        usize::min(self.grid_canvas_properties.world_dimension, self.first_row_to_display() + rows_to_display)
+    }
+
+    pub(super) fn first_column_to_display(&self) -> usize {
+        f32::floor(self.offset_x) as usize
+    }
+
+    pub(super) fn first_row_to_display(&self) -> usize {
+        f32::floor(self.offset_y) as usize
+    }
+
+    pub(super) fn robot_should_be_displaied(&self, robot_position: &Coord) -> bool {
+        robot_position.x >=  self.first_column_to_display()
+            && robot_position.x < self.get_last_column_to_display()
+            && robot_position.y >= self.first_row_to_display()
+            && robot_position.y < self.get_last_row_to_display() 
+    }
 }
 
 #[derive(Debug)]
@@ -156,17 +184,27 @@ impl OhCrabVisualizer {
     fn init_state(&mut self, canvas_size: f32)  -> Result<(), OhCrabVisualizerError> {
         println_d!("MY awesome macro {} {}.", 42, 73);
         println_d!("VISUALIZER UPDATE, doing first world tick.");
-        self.visualization_state.grid_canvas_properties = GridCanvasProperties::build(canvas_size);
         self.do_world_tick()?;
         let received_map = self.map_receiver.try_recv();
         match received_map {
             Ok(map_item) => {
-                println_d!("VISUALIZER RECEIVED MAP with robot position {:?}", (map_item.map.robot_position.x, map_item.map.robot_position.y));
+                self.visualization_state.grid_canvas_properties = GridCanvasProperties::build(canvas_size, map_item.map.world_map.len());
+                let robot_pos = map_item.map.robot_position;
+                self.focus_on_robot();
+                println_d!("VISUALIZER RECEIVED MAP with robot position {:?}", (robot_pos.x, robot_pos.y));
                 self.world_state.world_map = Some(map_item.map.world_map);
-                self.world_state.robot_position = Some( map_item.map.robot_position);
+                self.world_state.robot_position = Some(robot_pos);
+                
                 Ok(())
             }
             Err(_) => todo!(),
+        }
+    }
+
+    fn focus_on_robot(&mut self) {
+        if let Some(robot_pos) = &self.world_state.robot_position{
+            self.visualization_state.offset_x = (robot_pos.x  - (self.visualization_state.grid_canvas_properties.num_columns_to_display() / 2 )) as f32;
+            self.visualization_state.offset_y = (robot_pos.y  - (self.visualization_state.grid_canvas_properties.num_rows_to_display() / 2 )) as f32;
         }
     }
 }
@@ -301,7 +339,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
 
             let tile_offset = Coord { x: f32::floor(self.visualization_state.offset_x) as usize, y: f32::floor(self.visualization_state.offset_y) as usize };
 
-            draw_utils::draw_grid(ctx, &mut canvas, &self.visualization_state.grid_canvas_properties, &tile_offset, world_map)?;
+            draw_utils::draw_grid(ctx, &mut canvas, &self.visualization_state, world_map, &self.world_state.robot_position)?;
             canvas.draw(&self.gui, DrawParam::default().dest(glam::Vec2::new(400.0, 400.0)));
 
             //canvas.draw(&self.gui, DrawParam::default().dest(glam::Vec2::new(grid_canvas_props.grid_canvas_width + 20.0, grid_canvas_props.grid_canvas_height - 20.0)));
@@ -316,10 +354,10 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
             //     }
             // }
 
-            // robot
-            if let Some(robot_position) = &self.world_state.robot_position {
-                draw_utils::draw_robot(robot_position, ctx, &mut canvas, tile_size)?;
-            }
+            // // robot
+            // if let Some(robot_position) = &self.world_state.robot_position {
+            //     draw_utils::draw_robot(robot_position, ctx, &mut canvas, tile_size)?;
+            // }
             
             //backpack
             draw_utils::draw_backpack(&self.world_state.backpack, &mut canvas, tile_size, world_dimension);
