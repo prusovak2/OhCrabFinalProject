@@ -212,21 +212,21 @@ impl OhCrabVisualizer {
         install_image_loaders(&self.gui.ctx());
         let received_map = self.map_receiver.try_recv();
 
-        self.world_state.backpack.insert(Content::Rock(0), 5);
-        self.world_state.backpack.insert(Content::Tree(0), 3);
-        self.world_state.backpack.insert(Content::Garbage(0), 10);
-        self.world_state.backpack.insert(Content::Fire, 1);
-        self.world_state.backpack.insert(Content::Coin(0), 50);
-        self.world_state.backpack.insert(Content::Bin(0..10), 2);
-        self.world_state.backpack.insert(Content::Crate(0..10), 3);
-        self.world_state.backpack.insert(Content::Bank(0..10), 1);
-        self.world_state.backpack.insert(Content::Water(0), 8);
-        self.world_state.backpack.insert(Content::Market(0), 1);
-        self.world_state.backpack.insert(Content::Fish(0), 15);
-        self.world_state.backpack.insert(Content::Building, 2);
-        self.world_state.backpack.insert(Content::Bush(0), 5);
-        self.world_state.backpack.insert(Content::JollyBlock(0), 2);
-        self.world_state.backpack.insert(Content::Scarecrow, 1);
+        // self.world_state.backpack.insert(Content::Rock(0), 5);
+        // self.world_state.backpack.insert(Content::Tree(0), 3);
+        // self.world_state.backpack.insert(Content::Garbage(0), 10);
+        // self.world_state.backpack.insert(Content::Fire, 1);
+        // self.world_state.backpack.insert(Content::Coin(0), 50);
+        // self.world_state.backpack.insert(Content::Bin(0..10), 2);
+        // self.world_state.backpack.insert(Content::Crate(0..10), 3);
+        // self.world_state.backpack.insert(Content::Bank(0..10), 1);
+        // self.world_state.backpack.insert(Content::Water(0), 8);
+        // self.world_state.backpack.insert(Content::Market(0), 1);
+        // self.world_state.backpack.insert(Content::Fish(0), 15);
+        // self.world_state.backpack.insert(Content::Building, 2);
+        // self.world_state.backpack.insert(Content::Bush(0), 5);
+        // self.world_state.backpack.insert(Content::JollyBlock(0), 2);
+        // self.world_state.backpack.insert(Content::Scarecrow, 1);
         match received_map {
             Ok(map_item) => {
                 self.visualization_state.grid_canvas_properties = GridCanvasProperties::build(canvas_size, map_item.map.world_map.len());
@@ -275,7 +275,7 @@ impl OhCrabVisualizer {
 
 impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
     fn update(&mut self, ctx: &mut ggez::Context) -> Result<(), OhCrabVisualizerError> {
-        println_d!("VISUALIZER UPDATE, TICK COUNT: {}", self.tick_counter);
+        //println_d!("VISUALIZER UPDATE, TICK COUNT: {}", self.tick_counter);
 
         if self.tick_counter == 0 {
             let (x, y) = ctx.gfx.size();
@@ -344,7 +344,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
             return Ok(());
         }
 
-        println_d!("VISUALIZER UPDATE, receiving from robot channel.");
+        //println_d!("VISUALIZER UPDATE, receiving from robot channel.");
         let received_state = self.robot_receiver.try_recv();
 
         match received_state {
@@ -371,10 +371,22 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
                                 }
                             }
                             RobotEvent::AddedToBackpack(content, amount) => {
-                                println_d!("VISUALIZER: added to backpack.");
-                                *self.world_state.backpack.entry(content).or_insert(0) += amount;
+                                println_d!("VISUALIZER: added to backpack: {:?}, {:?}.", content, amount);
+                                *self.world_state.backpack.entry(content.clone()).or_insert(0) += amount;
+                                let amt = self.world_state.backpack.get(&content);
+                                println_d!("   current amount {:?} of {:?} after add", amt, content.to_string());
                             }
-                            // RobotEvent::RemovedFromBackpack(_, _) => todo!(),
+                            RobotEvent::RemovedFromBackpack(content, amount) => {
+                                println!("VISUALIZER: removed from backpack: {:?}, {:?}.", content, amount);
+                                if let Some(current_amount) = self.world_state.backpack.get_mut(&content) {
+                                    if *current_amount > amount {
+                                        *current_amount -= amount;
+                                        println_d!("   current amount {:?} of {:?} after remove", *current_amount, content.to_string());
+                                    } else {
+                                        self.world_state.backpack.remove(&content);
+                                    }
+                                }
+                            }
                             _ => {
                                 println_d!("VISUALIZER: {:?}", event);
                             }
@@ -387,7 +399,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
                 }
             }
             Err(std::sync::mpsc::TryRecvError::Empty) => {
-                println_d!("VISUALIZER: channel empty, execution another world tick.");
+                //println_d!("VISUALIZER: channel empty, execution another world tick.");
                 self.world_tick_in_progress = false;
                 if !self.is_interactive() {
                     self.do_world_tick()?;
@@ -404,16 +416,12 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
     fn draw(&mut self, ctx: &mut ggez::Context) -> Result<(), OhCrabVisualizerError> {
         // world map
         if let Some(world_map) = &self.world_state.world_map {
-            println_d!("draw");
             let mut canvas = graphics::Canvas::from_frame(ctx, graphics::Color::BLACK);
             
             let world_dimension = world_map.len();
             let (x, y) = ctx.gfx.size();
             let size = f32::min(x, y);
             let tile_size = 64 as f32; //(size / world_dimension as f32) - 10 as f32;
-            println_d!("TILE SIZE: {}", tile_size);
-
-            let tile_offset = Coord { x: f32::floor(self.visualization_state.offset_x) as usize, y: f32::floor(self.visualization_state.offset_y) as usize };
 
             draw_utils::draw_grid(ctx, &mut canvas, &self.visualization_state, world_map, &self.world_state.robot_position)?;
             canvas.draw(&self.gui, DrawParam::default().dest(glam::Vec2::new(400.0, 400.0)));

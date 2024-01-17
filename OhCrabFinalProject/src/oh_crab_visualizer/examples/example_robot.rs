@@ -59,6 +59,11 @@ impl Runnable for ExampleRobot {
         println_d!("TICK COUNT: {:?}", self.tick_counter);
         self.tick_counter+=1;
 
+        match VisualizableInterfaces::put(self, world, Content::Water(0), 2, Direction::Right) {
+            Ok(_) => {}
+            Err(error) => println!("Example robot: put error {:?}", error)
+        }
+
         match VisualizableInterfaces::go(self, world, self.get_direction()) {
             Ok((_, (y, x))) => { println_d!("Example robot: new position {:?}", (x,y));}
             Err(_) => {
@@ -87,10 +92,12 @@ impl Runnable for ExampleRobot {
             Err(error) => println!("Example robot: collect error {:?}", error)
         }
 
-        // match CollectTool::collect_content(self, world, &Content::Water(0), 42, 40){
-        //     Ok(_) => {}
-        //     Err(error) => println!("Example robot: collect error {:?}", error)
-        // }
+        
+
+        match CollectTool::collect_content(self, world, &Content::Water(0), 42, 40){
+            Ok(_) => {}
+            Err(error) => println!("Example robot: collect error {:?}", error)
+        }
     }
 
     fn handle_event(&mut self, event: robotics_lib::event::events::Event) {

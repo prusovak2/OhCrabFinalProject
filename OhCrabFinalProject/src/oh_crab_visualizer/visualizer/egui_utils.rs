@@ -5,7 +5,7 @@ use egui_extras::{TableBuilder, Column};
 use ggegui::{GuiContext, egui::{self, Layout}};
 use robotics_lib::world::tile::Content;
 
-use super::{visualizer::{VisualizationState, GRID_CANVAS_ORIGIN_X}, draw_utils::get_content_string};
+use super::visualizer::VisualizationState;
 
 pub(super) struct EguiImages<'a> {
     content_images:HashMap<Content, Image<'a>>,
@@ -46,9 +46,6 @@ pub(super) fn draw_backpack(gui_ctx: &mut GuiContext, visualizatio_state: &Visua
             .cell_layout(Layout::left_to_right(egui::Align::Center))
             .column(Column::auto())
             .column(Column::auto())
-            // .column(Column::initial(100.0).range(40.0..=300.0))
-            // .column(Column::initial(100.0).at_least(40.0).clip(true))
-            // .column(Column::remainder())
             .min_scrolled_height(0.0);
 
             table
@@ -64,10 +61,7 @@ pub(super) fn draw_backpack(gui_ctx: &mut GuiContext, visualizatio_state: &Visua
                 for (content, amount) in backpack.iter() {
                     let row_height = 30.0 ;
                     body.row(row_height, |mut row| {
-                        //row.set_selected(self.selection.contains(&row_index));
-
                         row.col(|ui| {
-                            //ui.add(egui::Image::new(egui::include_image!("assets\\content\\fish.png")));
                             let image = egui_images.content_images.get(content).unwrap();
                             ui.add(image.clone());
                             ui.label(content.to_string());
