@@ -8,6 +8,8 @@ use robotics_lib::world::{tile::Content, environmental_conditions::WeatherType};
 
 use super::visualizer::{VisualizationState, WorldTime};
 
+const COLON_KEY:u8 = 42;
+
 pub(super) struct EguiImages<'a> {
     content_images: HashMap<Content, Image<'a>>,
     weather_images: HashMap<WeatherType, (String, Image<'a>)>,
@@ -53,7 +55,7 @@ impl<'a> EguiImages<'a> {
         digit_map.insert(7, egui::Image::new(egui::include_image!("assets\\digits\\white\\digits_07.png")));
         digit_map.insert(8, egui::Image::new(egui::include_image!("assets\\digits\\white\\digits_08.png")));
         digit_map.insert(9, egui::Image::new(egui::include_image!("assets\\digits\\white\\digits_09.png")));
-        digit_map.insert(42, egui::Image::new(egui::include_image!("assets\\digits\\white\\digits_11.png")));
+        digit_map.insert(COLON_KEY, egui::Image::new(egui::include_image!("assets\\digits\\white\\digits_11.png")));
 
         EguiImages { content_images: content_map, weather_images: weather_map, digit_images: digit_map }
     }
@@ -101,7 +103,21 @@ pub(super) fn draw_time(gui_ctx: &mut GuiContext, visualizatio_state: &Visualiza
     egui::Window::new("Time")
         .default_pos((visualizatio_state.grid_canvas_properties.grid_canvas_origin_x + visualizatio_state.grid_canvas_properties.grid_canvas_width + 240.0, 15.0))
         .show(&gui_ctx, |ui| {
-            ui.label(format!("{}:{}", world_time.hours, world_time.minutes));
+            //ui.label(format!("{}:{}", world_time.hours, world_time.minutes));
+            ui.horizontal(|ui| {
+                let (first, second) = get_digits(world_time.hours);
+                let image = egui_images.digit_images.get(&first).unwrap();
+                ui.add(image.clone());
+                let image = egui_images.digit_images.get(&second).unwrap();
+                ui.add(image.clone());
+                let colon_image = egui_images.digit_images.get(&COLON_KEY).unwrap();
+                ui.add(colon_image.clone());
+                let (first, second) = get_digits(world_time.minutes);
+                let image = egui_images.digit_images.get(&first).unwrap();
+                ui.add(image.clone());
+                let image = egui_images.digit_images.get(&second).unwrap();
+                ui.add(image.clone());
+            });
             ui.horizontal(|ui| {
                 let (weather_name, weather_image) = egui_images.weather_images.get(&world_time.weather).unwrap();
                 ui.strong("Weather: ");
@@ -118,4 +134,10 @@ pub(super) fn draw_time(gui_ctx: &mut GuiContext, visualizatio_state: &Visualiza
             });
             // simulation finished
         });
+}
+
+fn get_digits(number: u8) -> (u8, u8) {
+    let second = number % 10;
+    let first = (number / 10) % 10;
+    (first, second)
 }
