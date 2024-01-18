@@ -187,10 +187,25 @@ pub(super) fn draw_energy_bar(ctx: &egui::Context, visualizatio_state: &Visualiz
             ui.add(energy_bar);
 
             ui.horizontal(|ui| {
-                ui.add(egui_images.energy.clone());
+                ui.label("Energy bilance per tick:");
                 let plus_or_not = if energy_difference > 0 {"+"} else {""};
                 ui.strong(format!("{plus_or_not}{energy_difference}"));
+                ui.add(egui_images.energy.clone());
             });
+        });
+}
+
+pub(super) fn draw_rizler_message(ctx: &egui::Context, visualizatio_state: &VisualizationState, riz_message: &Option<String>) {
+    egui::Window::new("Rizzler")
+        .default_pos((visualizatio_state.grid_canvas_properties.grid_canvas_origin_x + visualizatio_state.grid_canvas_properties.grid_canvas_width +  280.0, 500.0))
+        //.min_width(500.0)
+        .collapsible(false)
+        .show(ctx, |ui| {
+            ui.strong("Robot say: ");
+            match riz_message {
+                Some(message) => {ui.label(message);},
+                None => {ui.label("Nothing much.");},
+            }
         });
 }
 
