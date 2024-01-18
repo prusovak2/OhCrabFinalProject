@@ -101,7 +101,7 @@ pub(super) fn draw_backpack(gui_ctx: &mut GuiContext, visualizatio_state: &Visua
 
 pub(super) fn draw_time(gui_ctx: &mut GuiContext, visualizatio_state: &VisualizationState, world_time: &WorldTime, num_ticks: usize, simulation_finished: bool, egui_images: &EguiImages){
     egui::Window::new("Time")
-        .default_pos((visualizatio_state.grid_canvas_properties.grid_canvas_origin_x + visualizatio_state.grid_canvas_properties.grid_canvas_width + 240.0, 15.0))
+        .default_pos((visualizatio_state.grid_canvas_properties.grid_canvas_origin_x + visualizatio_state.grid_canvas_properties.grid_canvas_width + 210.0, 15.0))
         .show(&gui_ctx, |ui| {
             //ui.label(format!("{}:{}", world_time.hours, world_time.minutes));
             ui.horizontal(|ui| {
@@ -132,7 +132,9 @@ pub(super) fn draw_time(gui_ctx: &mut GuiContext, visualizatio_state: &Visualiza
                 ui.strong("Tick number: ");
                 ui.label(format!("{}", num_ticks));
             });
-            // simulation finished
+            if simulation_finished {
+                ui.strong("SIMULATION FINISHED");
+            }
         });
 }
 
