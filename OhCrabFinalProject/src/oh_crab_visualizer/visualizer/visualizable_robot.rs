@@ -1,10 +1,7 @@
 use std::sync::mpsc::Sender;
-use robotics_lib::{runner::Runnable, interface::debug, event::events::Event as RobotEvent};
-
-
+use robotics_lib::{runner::Runnable, interface::debug, event::events::Event as RobotEvent, world::tile::Tile};
 use crate::println_d;
-
-use super::{visualizer::WorldMap, visualizer_event_listener::VisualizerEventListener};
+use super::{visualizer_event_listener::VisualizerEventListener, Coord};
 
 // trait RunnableVisualizable<'a>: Runnable + Visalizable<'a> {
 // }
@@ -17,14 +14,14 @@ pub trait RobotCreator {
     fn create(&self, event_listener: VisualizerEventListener) -> Box<dyn Runnable>;
 }
 
-pub(crate) struct VisualizableRobot {
+pub(super) struct VisualizableRobot {
     real_robot: Box<dyn Runnable>,
-    map_sender: Sender<MapChannelItem>,
+    map_sender: Sender<InitStateChannelItem>,
     is_initialized: bool
 }
 
 impl VisualizableRobot {
-    pub(crate) fn new(real_robot: Box<dyn Runnable>, map_sender: Sender<MapChannelItem>) -> VisualizableRobot {
+    pub(super) fn new(real_robot: Box<dyn Runnable>, map_sender: Sender<InitStateChannelItem>) -> VisualizableRobot {
         VisualizableRobot {
             real_robot: real_robot,
             map_sender,
@@ -73,14 +70,30 @@ impl VisualizableRobot {
         if !self.is_initialized {
             let (map, _, (robot_y, robot_x)) = debug(self, world);
             println_d!("VISUALIZABLE ROBOT SENDING ON POSITION {:?} SENDING WORLD MAP", (robot_x, robot_y));
-            println_d!("{:?}", map);
-            let world_state = WorldMap::new(map, (robot_x, robot_y));
-            self.map_sender.send(MapChannelItem { map: world_state }).expect("Sending state from robot to visualizer failed");
+            //println_d!("{:?}", map);
+            let robot_energy = self.get_energy();
+            let energy_amount = robot_energy.get_energy_level();
+            println!("VISUALIZABLE ROBOT: energy {}", energy_amount); //TODO debgu print
+            let world_state = InitWorldState::new(map, (robot_x, robot_y), energy_amount);
+            self.map_sender.send(InitStateChannelItem { state: world_state }).expect("Sending state from robot to visualizer failed");
             self.is_initialized = true
         }
     }
 }
 
-pub(crate) struct MapChannelItem {
-    pub(crate) map: WorldMap
+pub(super) struct InitStateChannelItem {
+    pub(super) state: InitWorldState
+}
+
+#[derive(Debug)]
+pub(super) struct InitWorldState {
+    pub(super) world_map: Vec<Vec<Tile>>,
+    pub(super) robot_position: Coord,
+    pub(super) robot_energy: usize
+}
+
+impl InitWorldState {
+    pub(crate) fn new(world_map: Vec<Vec<Tile>>, (robot_x, roboy_y): (usize, usize), energy: usize) -> InitWorldState {
+        InitWorldState { world_map: world_map, robot_position: Coord { x: robot_x, y: roboy_y }, robot_energy: energy }
+    }
 }
