@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ggez::{graphics::{Canvas, Color, self, TextFragment}, Context, glam};
+use ggez::{graphics::{Canvas, Color, self, TextFragment, Image}, Context, glam, mint::{Point2, Vector2}};
 use robotics_lib::world::tile::{Tile, TileType, Content};
 
 use crate::println_d;
@@ -163,21 +163,34 @@ fn draw_robot(robot_position: &Coord, ctx: &mut Context, canvas: &mut Canvas, ti
 
     let circle_radius = tile_size * 0.2;
 
-    let res = graphics::Mesh::new_circle(
-        ctx,
-        graphics::DrawMode::fill(),
-        glam::Vec2::new(center_x, center_y),
-        circle_radius,
-        0.4, // Segments (adjust based on your needs)
-        Color::BLACK,
-    );
-    match res {
-        Ok(circle) => {
-            canvas.draw(&circle, graphics::DrawParam::default());
-            Ok(())
-        }
-        Err(error) => Err(OhCrabVisualizerError::GraphicsLibraryError(error))
+    if tile_size >= CONTENT_TILE_SIZE_LIMIT {
+        let robot_image = Image::from_path(&ctx.gfx, "/assets/images/robot/robot_1.png").expect("Failed to load robot picture.");
+        let draw_param = graphics::DrawParam::new()
+            .dest(Point2 { x: 100.0, y:100.0})
+            .scale(Vector2 {x:0.5, y:0.5});
+
+        canvas.draw(&robot_image, draw_param);
+        Ok(())
     }
+    else{
+        let res = graphics::Mesh::new_circle(
+            ctx,
+            graphics::DrawMode::fill(),
+            glam::Vec2::new(center_x, center_y),
+            circle_radius,
+            0.4, // Segments (adjust based on your needs)
+            Color::BLACK,
+        );
+        match res {
+            Ok(circle) => {
+                canvas.draw(&circle, graphics::DrawParam::default());
+                Ok(())
+            }
+            Err(error) => Err(OhCrabVisualizerError::GraphicsLibraryError(error))
+        }
+    }
+
+
 }
 
 pub(super) fn draw_text(canvas: &mut Canvas, x: f32, y:f32, color: Color, size:f32, text: String ) {
