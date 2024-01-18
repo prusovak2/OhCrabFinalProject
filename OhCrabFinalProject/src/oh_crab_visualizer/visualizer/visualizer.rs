@@ -1,16 +1,16 @@
-use std::{sync::mpsc::{Receiver, self}, collections::HashMap, default, cmp::min};
+use std::{sync::mpsc::{Receiver, self}, collections::HashMap};
 
+use egui::{Visuals, Context};
 use egui_extras::install_image_loaders;
-use ggegui::{egui::{self, ScrollArea, Key}, Gui};
-use ggez::{event::{EventHandler, self}, timer, graphics::{self, Color, DrawParam}, GameError, Context, glam, input::gamepad::gilrs::GilrsBuilder};
+use ggegui::{egui::{self}, Gui};
+use ggez::{event::{EventHandler, self}, graphics::{self, Color, DrawParam}, GameError, glam};
 use oxagworldgenerator::world_generator::OxAgWorldGenerator;
-use rand::distributions::weighted::alias_method;
 use robotics_lib::{runner::Runner, utils::LibError as RobotError, event::events::Event as RobotEvent, world::{tile::{Tile, Content}, environmental_conditions::{WeatherType, EnvironmentalConditions}}};
 use rstykrab_cache::Cache;
 
 use crate::{oh_crab_visualizer::visualizer::{draw_utils::{self, GridCanvasProperties}, visualizer_debug, egui_utils}, println_d};
 
-use super::{visualizable_robot::{VisualizableRobot, RobotCreator, MapChannelItem}, Coord, visualizer_event_listener::{VisualizerEventListener, ChannelItem}, egui_utils::EguiImages};
+use super::{visualizable_robot::{VisualizableRobot, RobotCreator, InitStateChannelItem}, Coord, visualizer_event_listener::{VisualizerEventListener, ChannelItem}, egui_utils::EguiImages};
 
 pub(super) const TILE_SIZE_MIN:f32 = 5.0;
 pub(super) const TILE_SIZE_MAX:f32 = 120.8;
@@ -21,10 +21,12 @@ pub(super) const GRID_FRAME_WIDTH: f32 = 20.0;
 pub(super) const GRID_CANVAS_ORIGIN_X: f32 = 200.0 + GRID_FRAME_WIDTH;
 pub(super) const GRID_CANVAS_ORIGIN_Y: f32 = 0.0 + GRID_FRAME_WIDTH;
 
+pub(super) const MAX_ENERGY_LEVEL: usize = 1000;
+
 pub struct OhCrabVisualizer {
     runner: Runner,
     robot_receiver: Receiver<ChannelItem>,
-    map_receiver: Receiver<MapChannelItem>,
+    map_receiver: Receiver<InitStateChannelItem>,
     action_cache: Cache,
     
     gui: Gui,
@@ -45,7 +47,10 @@ pub struct OhCrabVisualizer {
 struct WorldState {
     world_map: Option<Vec<Vec<Tile>>>,
     robot_position: Option<Coord>,
-    backpack: HashMap<Content, usize>
+    backpack: HashMap<Content, usize>,
+    robot_energy: usize,
+    previous_tick_energy_difference: i32,
+    current_tick_energy_difference: i32
 }
 
 impl WorldState {
@@ -53,7 +58,10 @@ impl WorldState {
         WorldState {
             world_map: None,
             robot_position: None,
-            backpack: HashMap::new()
+            backpack: HashMap::new(),
+            robot_energy: 0,
+            current_tick_energy_difference: 0,
+            previous_tick_energy_difference: 0
         }
     }
 }
@@ -173,9 +181,9 @@ impl OhCrabVisualizerConfig {
 impl OhCrabVisualizer {
     pub fn new(robot_creator: impl RobotCreator, mut world_generator: OxAgWorldGenerator, config: OhCrabVisualizerConfig) -> OhCrabVisualizer {
         let (robot_sender, robot_receiver) = mpsc::channel::<ChannelItem>();
-        let (map_sender, map_receiver) = mpsc::channel::<MapChannelItem>();
+        let (map_sender, map_receiver) = mpsc::channel::<InitStateChannelItem>();
 
-        let mut visualizer_data_sender = VisualizerEventListener::new(robot_sender, config.use_sound);
+        let visualizer_data_sender = VisualizerEventListener::new(robot_sender, config.use_sound);
         let robot = robot_creator.create(visualizer_data_sender);
         let visualizable_robot = VisualizableRobot::new(robot, map_sender);
 
@@ -229,6 +237,8 @@ impl OhCrabVisualizer {
     }
 
     fn do_world_tick(&mut self) -> Result<(), OhCrabVisualizerError> {
+        self.world_state.previous_tick_energy_difference = self.world_state.current_tick_energy_difference;
+        self.world_state.current_tick_energy_difference = 0;
         let res = self.runner.game_tick();
         self.tick_counter += 1;
         match res {
@@ -265,12 +275,13 @@ impl OhCrabVisualizer {
         // self.world_state.backpack.insert(Content::JollyBlock(0), 2);
         // self.world_state.backpack.insert(Content::Scarecrow, 1);
         match received_map {
-            Ok(map_item) => {
-                self.visualization_state.grid_canvas_properties = GridCanvasProperties::build(canvas_size, map_item.map.world_map.len());
-                let robot_pos = map_item.map.robot_position;
-                println_d!("VISUALIZER RECEIVED MAP with robot position {:?}", (robot_pos.x, robot_pos.y));
-                self.world_state.world_map = Some(map_item.map.world_map);
+            Ok(item) => {
+                self.visualization_state.grid_canvas_properties = GridCanvasProperties::build(canvas_size, item.state.world_map.len());
+                let robot_pos = item.state.robot_position;
+                println_d!("VISUALIZER RECEIVED MAP with robot position {:?} and robot energy {:?}", (robot_pos.x, robot_pos.y), item.state.robot_energy);
+                self.world_state.world_map = Some(item.state.world_map);
                 self.world_state.robot_position = Some(robot_pos);
+                self.world_state.robot_energy = item.state.robot_energy;
                 self.focus_on_robot();
                 Ok(())
             }
@@ -313,7 +324,6 @@ impl OhCrabVisualizer {
 impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
     fn update(&mut self, ctx: &mut ggez::Context) -> Result<(), OhCrabVisualizerError> {
         //println_d!("VISUALIZER UPDATE, TICK COUNT: {}", self.tick_counter);
-
         if self.tick_counter == 0 {
             let (x, y) = ctx.gfx.size();
             let size = f32::min(x, y);
@@ -322,6 +332,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
         
         let mut res: Result<(), OhCrabVisualizerError> = Ok(());
         let gui_ctx = &mut self.gui.ctx();
+        gui_ctx.set_visuals(Visuals::dark());
         egui::Window::new("Scroll world").show(&gui_ctx, |ui: &mut egui::Ui| {
             if let Some(world_map) = &self.world_state.world_map {
                 let (scroll_limit_x, scroll_limit_y) = self.visualization_state.get_scroll_limit(world_map.len());
@@ -363,6 +374,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
 
         egui_utils::draw_backpack(gui_ctx, &self.visualization_state, &self.world_state.backpack, &self.egui_images);
         egui_utils::draw_time(gui_ctx, &self.visualization_state, &self.world_time, self.tick_counter, self.simulation_should_end(), &self.egui_images);
+        egui_utils::draw_energy_bar(gui_ctx, &self.visualization_state, self.world_state.robot_energy, self.world_state.previous_tick_energy_difference, &self.egui_images);
 
         self.gui.update(ctx);
         if res.is_err() {
@@ -395,16 +407,24 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
                             // RobotEvent::Ready => todo!(),
                             // RobotEvent::Terminated => todo!(),
                             RobotEvent::TimeChanged(env_conditions) => {
-                                println!("VISUALIZER: received EVENT time changed {:?}", (env_conditions));
+                                println_d!("VISUALIZER: received EVENT time changed {:?}", (env_conditions));
                                 self.world_time.update_from_env_conditions(&env_conditions);
                             }
                             RobotEvent::DayChanged(env_conditions) => {
-                                println!("VISUALIZER: received EVENT day changed {:?}", (env_conditions));
+                                println_d!("VISUALIZER: received EVENT day changed {:?}", (env_conditions));
                                 self.world_time.update_from_env_conditions(&env_conditions);
                                 self.world_time.day_counter +=1;
                             }
-                            // RobotEvent::EnergyRecharged(_) => todo!(),
-                            // RobotEvent::EnergyConsumed(_) => todo!(),
+                            RobotEvent::EnergyRecharged(amount) => {
+                                println!("VISUALIZER: received EVENT energy recharged {:?}", (amount));
+                                self.world_state.robot_energy += amount;
+                                self.world_state.current_tick_energy_difference += amount as i32;
+                            },
+                            RobotEvent::EnergyConsumed(amount) => {
+                                println!("VISUALIZER: received EVENT energy consumed {:?}", (amount));
+                                self.world_state.robot_energy -= amount;
+                                self.world_state.current_tick_energy_difference -=  amount as i32;
+                            },
                             RobotEvent::Moved(_, (robot_y, robot_x)) => { // BEWARE: library has x and y switched in Move event
                                 println_d!("VISUALIZER: received robot moved {:?}", (robot_x, robot_y));
                                 self.world_state.robot_position = Some(Coord{x:robot_x, y:robot_y });
@@ -418,8 +438,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
                             RobotEvent::AddedToBackpack(content, amount) => {
                                 println_d!("VISUALIZER: added to backpack: {:?}, {:?}.", content, amount);
                                 *self.world_state.backpack.entry(content.clone()).or_insert(0) += amount;
-                                let amt = self.world_state.backpack.get(&content);
-                                println_d!("   current amount {:?} of {:?} after add", amt, content.to_string());
+                                println_d!("   current amount {:?} of {:?} after add", self.world_state.backpack.get(&content), content.to_string());
                             }
                             RobotEvent::RemovedFromBackpack(content, amount) => {
                                 println!("VISUALIZER: removed from backpack: {:?}, {:?}.", content, amount);
@@ -491,17 +510,5 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
         else {
             Err(OhCrabVisualizerError::DataError(DataChannelError::StateMissingError(format!("Game state is missing when it should be present"))))
         }
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct WorldMap {
-    world_map: Vec<Vec<Tile>>,
-    robot_position: Coord
-}
-
-impl WorldMap {
-    pub(crate) fn new(world_map: Vec<Vec<Tile>>, (robot_x, roboy_y): (usize, usize)) -> WorldMap {
-        WorldMap { world_map: world_map, robot_position: Coord { x: robot_x, y: roboy_y } }
     }
 }

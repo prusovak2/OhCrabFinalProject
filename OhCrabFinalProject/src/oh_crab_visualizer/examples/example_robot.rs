@@ -64,11 +64,11 @@ impl Runnable for ExampleRobot {
         //     Err(error) => println!("Example robot: put error {:?}", error)
         // }
 
-        let env_cond = VisualizableInterfaces::look_at_sky(self, world);
+        //let env_cond = VisualizableInterfaces::look_at_sky(self, world);
 
-        let time = env_cond.get_time_of_day();
+        // let time = env_cond.get_time_of_day();
 
-        println!("EXAMPLE ROBOT: time : {}, weather: {:?}", env_cond.get_time_of_day_string(), env_cond.get_weather_condition());
+        // println!("EXAMPLE ROBOT: time : {}, weather: {:?}", env_cond.get_time_of_day_string(), env_cond.get_weather_condition());
 
         match VisualizableInterfaces::go(self, world, self.get_direction()) {
             Ok((_, (y, x))) => { println_d!("Example robot: new position {:?}", (x,y));}
