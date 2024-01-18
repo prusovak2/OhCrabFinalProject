@@ -5,6 +5,7 @@ use egui_extras::install_image_loaders;
 use ggegui::{egui::{self}, Gui};
 use ggez::{event::{EventHandler, self}, graphics::{self, Color, DrawParam}, GameError, glam};
 use oxagworldgenerator::world_generator::OxAgWorldGenerator;
+use rand::{rngs::ThreadRng, seq::SliceRandom};
 use robotics_lib::{runner::Runner, utils::LibError as RobotError, event::events::Event as RobotEvent, world::{tile::{Tile, Content}, environmental_conditions::{WeatherType, EnvironmentalConditions}}};
 use rstykrab_cache::Cache;
 
@@ -28,6 +29,7 @@ pub struct OhCrabVisualizer {
     robot_receiver: Receiver<ChannelItem>,
     map_receiver: Receiver<InitStateChannelItem>,
     action_cache: Cache,
+    rng: ThreadRng,
     
     gui: Gui,
     egui_images: EguiImages<'static>,
@@ -50,7 +52,9 @@ struct WorldState {
     backpack: HashMap<Content, usize>,
     robot_energy: usize,
     previous_tick_energy_difference: i32,
-    current_tick_energy_difference: i32
+    current_tick_energy_difference: i32,
+    rizler_message: Option<String>,
+    rizzler_messages: Vec<String>
 }
 
 impl WorldState {
@@ -61,7 +65,9 @@ impl WorldState {
             backpack: HashMap::new(),
             robot_energy: 0,
             current_tick_energy_difference: 0,
-            previous_tick_energy_difference: 0
+            previous_tick_energy_difference: 0,
+            rizler_message: None,
+            rizzler_messages: Vec::new()
         }
     }
 }
@@ -202,7 +208,8 @@ impl OhCrabVisualizer {
             world_time: WorldTime::default(),
             visualization_state: VisualizationState::default(),
             world_tick_in_progress: false,
-            egui_images: EguiImages::init()
+            egui_images: EguiImages::init(),
+            rng: rand::thread_rng()
         }
     }
 
@@ -236,9 +243,22 @@ impl OhCrabVisualizer {
         }
     }
 
-    fn do_world_tick(&mut self) -> Result<(), OhCrabVisualizerError> {
+    fn update_riz_messages_for_tick(&mut self) {
+        match self.world_state.rizzler_messages.choose(&mut self.rng) {
+            Some(message) => {self.world_state.rizler_message = Some(message.clone())},
+            None => {},
+        }
+        self.world_state.rizzler_messages.clear();
+    }
+
+    fn update_energy_difference_for_tick(&mut self) {
         self.world_state.previous_tick_energy_difference = self.world_state.current_tick_energy_difference;
         self.world_state.current_tick_energy_difference = 0;
+    }
+
+    fn do_world_tick(&mut self) -> Result<(), OhCrabVisualizerError> {
+        self.update_energy_difference_for_tick();
+        self.update_riz_messages_for_tick();
         let res = self.runner.game_tick();
         self.tick_counter += 1;
         match res {
@@ -377,6 +397,8 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
         egui_utils::draw_energy_bar(gui_ctx, &self.visualization_state, self.world_state.robot_energy, self.world_state.previous_tick_energy_difference, &self.egui_images);
         let cached_actions = self.action_cache.get_recent_actions(self.action_cache.get_size()).unwrap();
         egui_utils::draw_history_cache(gui_ctx, &self.visualization_state, &cached_actions, &self.egui_images);
+        egui_utils::draw_rizler_message(gui_ctx, &self.visualization_state, &self.world_state.rizler_message);
+
 
         self.gui.update(ctx);
         if res.is_err() {
@@ -459,8 +481,11 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
                         }
                     }
                     ChannelItem::InterfaceChannelItem(interface_invocation) => {
-                        self.action_cache.add_record(interface_invocation.interface_action, (interface_invocation.robot_position.x, interface_invocation.robot_position.y));
                         println_d!("VISULAZER: received interface invocation: {:?}", interface_invocation);
+                        self.action_cache.add_record(interface_invocation.interface_action, (interface_invocation.robot_position.x, interface_invocation.robot_position.y));
+                        if let Some(meesage) = interface_invocation.riz_message {
+                            self.world_state.rizzler_messages.push(meesage);
+                        }
                     }
                 }
             }
@@ -484,25 +509,22 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
         if let Some(world_map) = &self.world_state.world_map {
             let mut canvas = graphics::Canvas::from_frame(ctx, graphics::Color::BLACK);
             
-            let world_dimension = world_map.len();
-            let (x, y) = ctx.gfx.size();
-            let size = f32::min(x, y);
-            let tile_size = 64 as f32; //(size / world_dimension as f32) - 10 as f32;
+            // let world_dimension = world_map.len();
+            // let (x, y) = ctx.gfx.size();
+            // let size = f32::min(x, y);
+            // let tile_size = 64 as f32; //(size / world_dimension as f32) - 10 as f32;
 
             draw_utils::draw_grid(ctx, &mut canvas, &self.visualization_state, world_map, &self.world_state.robot_position)?;
             canvas.draw(&self.gui, DrawParam::default().dest(glam::Vec2::new(400.0, 400.0)));
             
-            //backpack
-            //draw_utils::draw_backpack(&self.world_state.backpack, &mut canvas, tile_size, world_dimension);
+            // let x_tick_count = (tile_size * world_dimension as f32) + (tile_size*3.0);
+            // let y_tick_count = tile_size;
+            // let text_size = tile_size * 0.18;
+            // draw_utils::draw_text(&mut  canvas, x_tick_count, y_tick_count, Color::WHITE, text_size, format!("TICK: {}", self.tick_counter));
 
-            let x_tick_count = (tile_size * world_dimension as f32) + (tile_size*3.0);
-            let y_tick_count = tile_size;
-            let text_size = tile_size * 0.18;
-            draw_utils::draw_text(&mut  canvas, x_tick_count, y_tick_count, Color::WHITE, text_size, format!("TICK: {}", self.tick_counter));
-
-            if self.simulation_should_end() {
-                draw_utils::draw_text(&mut  canvas, x_tick_count, y_tick_count + text_size * 1.2, Color::WHITE, text_size, format!("SIMULATION DONE"));
-            }
+            // if self.simulation_should_end() {
+            //     draw_utils::draw_text(&mut  canvas, x_tick_count, y_tick_count + text_size * 1.2, Color::WHITE, text_size, format!("SIMULATION DONE"));
+            // }
 
             match canvas.finish(ctx) {
                 Ok(_) => Ok(()),
