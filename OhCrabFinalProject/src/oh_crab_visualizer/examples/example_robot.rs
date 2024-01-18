@@ -1,5 +1,5 @@
 use OhCrab_collection::collection::CollectTool;
-use robotics_lib::{runner::{Robot, Runnable}, interface::Direction, world::tile::Content};
+use robotics_lib::{runner::{Robot, Runnable}, interface::Direction};
 
 use crate::{oh_crab_visualizer::visualizer::{visualizable_interfaces::VisualizableInterfaces, visualizable_robot::{RobotCreator, Visulizable}, visualizer_event_listener::VisualizerEventListener}, println_d};
 
@@ -38,8 +38,8 @@ impl ExampleRobot {
         let modulo =  number % 4;
         match modulo {
             0 => Direction::Left,
-            1 => Direction::Up,
-            2 => Direction::Down,
+            1 => Direction::Down,
+            2 => Direction::Up,
             3 => Direction::Right,
             _ => panic!("Logic error: modulo 4")
         }
@@ -59,10 +59,16 @@ impl Runnable for ExampleRobot {
         println_d!("TICK COUNT: {:?}", self.tick_counter);
         self.tick_counter+=1;
 
-        match VisualizableInterfaces::put(self, world, Content::Water(0), 2, Direction::Right) {
-            Ok(_) => {}
-            Err(error) => println!("Example robot: put error {:?}", error)
-        }
+        // match VisualizableInterfaces::put(self, world, Content::Water(0), 2, Direction::Right) {
+        //     Ok(_) => {}
+        //     Err(error) => println!("Example robot: put error {:?}", error)
+        // }
+
+        let env_cond = VisualizableInterfaces::look_at_sky(self, world);
+
+        let time = env_cond.get_time_of_day();
+
+        println!("EXAMPLE ROBOT: time : {}, weather: {:?}", env_cond.get_time_of_day_string(), env_cond.get_weather_condition());
 
         match VisualizableInterfaces::go(self, world, self.get_direction()) {
             Ok((_, (y, x))) => { println_d!("Example robot: new position {:?}", (x,y));}
@@ -72,32 +78,32 @@ impl Runnable for ExampleRobot {
             }
         }
 
-        match CollectTool::collect_instantly_reachable(self, world, &Content::JollyBlock(0)){
-            Ok(_) => {}
-            Err(error) => println!("Example robot: collect error {:?}", error)
-        }
+        // match CollectTool::collect_instantly_reachable(self, world, &Content::JollyBlock(0)){
+        //     Ok(_) => {}
+        //     Err(error) => println!("Example robot: collect error {:?}", error)
+        // }
 
-        match CollectTool::collect_instantly_reachable(self, world, &Content::Fish(1)){
-            Ok(_) => {}
-            Err(error) => println!("Example robot: collect error {:?}", error)
-        }
+        // match CollectTool::collect_instantly_reachable(self, world, &Content::Fish(1)){
+        //     Ok(_) => {}
+        //     Err(error) => println!("Example robot: collect error {:?}", error)
+        // }
 
-        match CollectTool::collect_instantly_reachable(self, world, &Content::Coin(1)){
-            Ok(_) => {}
-            Err(error) => println!("Example robot: collect error {:?}", error)
-        }
+        // match CollectTool::collect_instantly_reachable(self, world, &Content::Coin(1)){
+        //     Ok(_) => {}
+        //     Err(error) => println!("Example robot: collect error {:?}", error)
+        // }
 
-        match CollectTool::collect_instantly_reachable(self, world, &Content::Water(1)){
-            Ok(_) => {}
-            Err(error) => println!("Example robot: collect error {:?}", error)
-        }
+        // match CollectTool::collect_instantly_reachable(self, world, &Content::Water(1)){
+        //     Ok(_) => {}
+        //     Err(error) => println!("Example robot: collect error {:?}", error)
+        // }
 
         
 
-        match CollectTool::collect_content(self, world, &Content::Water(0), 42, 40){
-            Ok(_) => {}
-            Err(error) => println!("Example robot: collect error {:?}", error)
-        }
+        // match CollectTool::collect_content(self, world, &Content::Water(0), 42, 40){
+        //     Ok(_) => {}
+        //     Err(error) => println!("Example robot: collect error {:?}", error)
+        // }
     }
 
     fn handle_event(&mut self, event: robotics_lib::event::events::Event) {

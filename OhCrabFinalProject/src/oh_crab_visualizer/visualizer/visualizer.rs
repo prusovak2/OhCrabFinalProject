@@ -5,7 +5,7 @@ use ggegui::{egui::{self, ScrollArea, Key}, Gui};
 use ggez::{event::{EventHandler, self}, timer, graphics::{self, Color, DrawParam}, GameError, Context, glam, input::gamepad::gilrs::GilrsBuilder};
 use oxagworldgenerator::world_generator::OxAgWorldGenerator;
 use rand::distributions::weighted::alias_method;
-use robotics_lib::{runner::Runner, utils::LibError as RobotError, event::events::Event as RobotEvent, world::tile::{Tile, Content}};
+use robotics_lib::{runner::Runner, utils::LibError as RobotError, event::events::Event as RobotEvent, world::{tile::{Tile, Content}, environmental_conditions::{WeatherType, EnvironmentalConditions}}};
 use rstykrab_cache::Cache;
 
 use crate::{oh_crab_visualizer::visualizer::{draw_utils::{self, GridCanvasProperties}, visualizer_debug, egui_utils}, println_d};
@@ -37,6 +37,7 @@ pub struct OhCrabVisualizer {
     // state
     tick_counter: usize,
     world_state: WorldState,
+    world_time: WorldTime,
     world_tick_in_progress: bool,
     visualization_state: VisualizationState
 }
@@ -54,6 +55,41 @@ impl WorldState {
             robot_position: None,
             backpack: HashMap::new()
         }
+    }
+}
+
+pub(super) struct WorldTime {
+    pub(super) day_counter: u64,
+    pub(super) hours: u8,
+    pub(super) minutes: u8,
+    pub(super) weather: WeatherType
+}
+
+impl Default for WorldTime {
+    fn default() -> Self {
+        Self { day_counter: Default::default(), hours: Default::default(), minutes: Default::default(), weather: WeatherType::Sunny }
+    }
+}
+
+impl WorldTime {
+    pub(crate) fn update_from_env_conditions(&mut self, env_conds: &EnvironmentalConditions) {
+        let (hours, minutes) = WorldTime::parse_time(&env_conds.get_time_of_day_string());
+        self.hours = hours;
+        self.minutes = minutes;
+        self.weather = env_conds.get_weather_condition();
+    }
+
+    fn parse_time(time_str: &str) -> (u8, u8) {
+        let parts: Vec<&str> = time_str.split(':').collect();
+
+        if parts.len() != 2 {
+            panic!("Invalid time format. Expected format: hh:mm");
+        }
+
+        let hours: u8 = parts[0].parse().expect("Failed to parse hours");
+        let minutes: u8 = parts[1].parse().expect("Failed to parse minutes");
+
+        (hours, minutes)
     }
 }
 
@@ -155,6 +191,7 @@ impl OhCrabVisualizer {
             delay_in_milis: config.delay_in_milis,
             tick_counter: 0,
             world_state: WorldState::empty(),
+            world_time: WorldTime::default(),
             visualization_state: VisualizationState::default(),
             world_tick_in_progress: false,
             egui_images: EguiImages::init()
@@ -324,7 +361,8 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
             // }
         });
 
-        egui_utils::draw_backpack(gui_ctx, &self.visualization_state,&self.world_state.backpack, &self.egui_images);
+        egui_utils::draw_backpack(gui_ctx, &self.visualization_state, &self.world_state.backpack, &self.egui_images);
+        egui_utils::draw_time(gui_ctx, &self.visualization_state, &self.world_time, self.tick_counter, self.simulation_should_end(), &self.egui_images);
 
         self.gui.update(ctx);
         if res.is_err() {
@@ -349,15 +387,22 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
 
         match received_state {
             Ok(channel_item) => {
-                println_d!("VISUALIZER UPDATE, received item {:?}.", channel_item);
+                //println_d!("VISUALIZER UPDATE, received item {:?}.", channel_item);
                 //timer::sleep(std::time::Duration::from_millis(self.delay_in_milis)); // TODO: why is this sleep there and not somewhere else?
                 match  channel_item {
                     ChannelItem::EventChannelItem(event) => {
                         match event {
                             // RobotEvent::Ready => todo!(),
                             // RobotEvent::Terminated => todo!(),
-                            // RobotEvent::TimeChanged(_) => todo!(),
-                            // RobotEvent::DayChanged(_) => todo!(),
+                            RobotEvent::TimeChanged(env_conditions) => {
+                                println!("VISUALIZER: received EVENT time changed {:?}", (env_conditions));
+                                self.world_time.update_from_env_conditions(&env_conditions);
+                            }
+                            RobotEvent::DayChanged(env_conditions) => {
+                                println!("VISUALIZER: received EVENT day changed {:?}", (env_conditions));
+                                self.world_time.update_from_env_conditions(&env_conditions);
+                                self.world_time.day_counter +=1;
+                            }
                             // RobotEvent::EnergyRecharged(_) => todo!(),
                             // RobotEvent::EnergyConsumed(_) => todo!(),
                             RobotEvent::Moved(_, (robot_y, robot_x)) => { // BEWARE: library has x and y switched in Move event
