@@ -427,14 +427,14 @@ impl OhCrabVisualizer {
 
     #[inline]
     fn process_energy_regarged_event(&mut self, amount: usize) {
-        println!("VISUALIZER: received EVENT energy recharged {:?}", (amount));
+        println_d!("VISUALIZER: received EVENT energy recharged {:?}", (amount));
         self.world_state.robot_energy += amount;
         self.world_state.current_tick_energy_difference += amount as i32;
     }
 
     #[inline]
     fn process_energy_consumed_event(&mut self, amount: usize) {
-        println!("VISUALIZER: received EVENT energy consumed {:?}", (amount));
+        println_d!("VISUALIZER: received EVENT energy consumed {:?}", (amount));
         self.world_state.robot_energy -= amount;
         self.world_state.current_tick_energy_difference -=  amount as i32;
     }

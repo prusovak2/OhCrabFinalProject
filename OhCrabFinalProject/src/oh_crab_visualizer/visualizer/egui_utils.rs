@@ -24,6 +24,7 @@ pub(super) struct EguiImages<'a> {
 
 impl<'a> EguiImages<'a> {
     pub(super) fn init() -> EguiImages<'a> {
+        println!("Loading pictures...");
         let mut content_map:HashMap<Content, Image<'a>> = HashMap::new();
         content_map.insert(Content::Fish(0), egui::Image::new(egui::include_image!("assets\\content\\fish.png")));
         content_map.insert(Content::Water(0), egui::Image::new(egui::include_image!("assets\\content\\water.png")));
