@@ -1,5 +1,5 @@
 use OhCrab_collection::collection::CollectTool;
-use robotics_lib::{runner::{Robot, Runnable}, interface::Direction};
+use robotics_lib::{runner::{Robot, Runnable}, interface::Direction, world::tile::Content};
 
 use crate::{oh_crab_visualizer::visualizer::{visualizable_interfaces::VisualizableInterfaces, visualizable_robot::{RobotCreator, Visulizable}, visualizer_event_listener::VisualizerEventListener}, println_d};
 
@@ -59,12 +59,12 @@ impl Runnable for ExampleRobot {
         println_d!("TICK COUNT: {:?}", self.tick_counter);
         self.tick_counter+=1;
 
-        // match VisualizableInterfaces::put(self, world, Content::Water(0), 2, Direction::Right) {
-        //     Ok(_) => {}
-        //     Err(error) => println!("Example robot: put error {:?}", error)
-        // }
+        match VisualizableInterfaces::put(self, world, Content::Water(0), 2, Direction::Right) {
+            Ok(_) => {}
+            Err(error) => println!("Example robot: put error {:?}", error)
+        }
 
-        //let env_cond = VisualizableInterfaces::look_at_sky(self, world);
+        let env_cond = VisualizableInterfaces::look_at_sky(self, world);
 
         // let time = env_cond.get_time_of_day();
 
@@ -78,10 +78,10 @@ impl Runnable for ExampleRobot {
             }
         }
 
-        // match CollectTool::collect_instantly_reachable(self, world, &Content::JollyBlock(0)){
-        //     Ok(_) => {}
-        //     Err(error) => println!("Example robot: collect error {:?}", error)
-        // }
+        match CollectTool::collect_instantly_reachable(self, world, &Content::JollyBlock(0)){
+            Ok(_) => {}
+            Err(error) => println!("Example robot: collect error {:?}", error)
+        }
 
         // match CollectTool::collect_instantly_reachable(self, world, &Content::Fish(1)){
         //     Ok(_) => {}

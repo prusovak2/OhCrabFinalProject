@@ -9,16 +9,16 @@ use crate::{oh_crab_visualizer::audio::get_configured_audio_tool, println_d};
 use super::Coord;
 
 #[derive(Debug)]
-pub(crate) enum ChannelItem {
+pub(super) enum ChannelItem {
     EventChannelItem(RobotEvent),
     InterfaceChannelItem(InterfaceInvocation)
 }
 
 #[derive(Debug)]
-pub(crate) struct InterfaceInvocation{
-    interface_action: Action,
-    robot_position: Coord,
-    riz_message: Option<String>
+pub(super) struct InterfaceInvocation{
+    pub(super) interface_action: Action,
+    pub(super) robot_position: Coord,
+    pub(super) riz_message: Option<String>
 }
 
 impl InterfaceInvocation {
@@ -32,12 +32,12 @@ impl InterfaceInvocation {
 }
 
 pub struct VisualizerEventListener{
-    pub(crate) sender: Sender<ChannelItem>,
+    pub(super) sender: Sender<ChannelItem>,
     audio_tool: Option<OxAgAudioTool>,
 }
 
 impl VisualizerEventListener {
-    pub(crate) fn new(sender: Sender<ChannelItem>, use_sound: bool) -> VisualizerEventListener {
+    pub(super) fn new(sender: Sender<ChannelItem>, use_sound: bool) -> VisualizerEventListener {
         VisualizerEventListener{
             sender,
             audio_tool: if use_sound { Some(VisualizerEventListener::get_configured_audio_tool())} else {None},

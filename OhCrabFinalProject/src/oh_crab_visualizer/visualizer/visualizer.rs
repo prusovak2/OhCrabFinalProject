@@ -193,7 +193,7 @@ impl OhCrabVisualizer {
             runner: runner,
             robot_receiver: robot_receiver,
             map_receiver,
-            action_cache: Cache::new(10),
+            action_cache: Cache::new(50),
             gui: Gui::default(),
             run_mode: config.run_mode,
             delay_in_milis: config.delay_in_milis,
@@ -375,6 +375,8 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
         egui_utils::draw_backpack(gui_ctx, &self.visualization_state, &self.world_state.backpack, &self.egui_images);
         egui_utils::draw_time(gui_ctx, &self.visualization_state, &self.world_time, self.tick_counter, self.simulation_should_end(), &self.egui_images);
         egui_utils::draw_energy_bar(gui_ctx, &self.visualization_state, self.world_state.robot_energy, self.world_state.previous_tick_energy_difference, &self.egui_images);
+        let cached_actions = self.action_cache.get_recent_actions(self.action_cache.get_size()).unwrap();
+        egui_utils::draw_history_cache(gui_ctx, &self.visualization_state, &cached_actions);
 
         self.gui.update(ctx);
         if res.is_err() {
@@ -457,7 +459,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
                         }
                     }
                     ChannelItem::InterfaceChannelItem(interface_invocation) => {
-                        println_d!();
+                        self.action_cache.add_record(interface_invocation.interface_action, (interface_invocation.robot_position.x, interface_invocation.robot_position.y));
                         println_d!("VISULAZER: received interface invocation: {:?}", interface_invocation);
                     }
                 }

@@ -1,10 +1,10 @@
-use core::num;
-use std::{collections::HashMap, fmt::format};
+use std::collections::HashMap;
 
-use egui::{Image, ahash::HashMapExt, Ui, Context, Rect, TextStyle};
+use egui::Image;
 use egui_extras::{TableBuilder, Column};
 use ggegui::{GuiContext, egui::{self, Layout}};
-use robotics_lib::world::{tile::Content, environmental_conditions::WeatherType};
+use robotics_lib::{world::{tile::Content, environmental_conditions::WeatherType}, interface::Direction};
+use rstykrab_cache::{Record, Action};
 
 use super::visualizer::{VisualizationState, WorldTime, MAX_ENERGY_LEVEL};
 
@@ -148,8 +148,6 @@ fn get_digits(number: u8) -> (u8, u8) {
 }
 
 pub(super) fn draw_energy_bar(ctx: &egui::Context, visualizatio_state: &VisualizationState, robot_energy: usize, energy_difference: i32, egui_images: &EguiImages) {
-    let energy_bar_width = 200.0;
-    let energy_bar_height = 20.0;
     let energy_percentage = robot_energy as f32 / MAX_ENERGY_LEVEL as f32; // MAX_ENERGY is the maximum energy value
 
     egui::Window::new("Robot energy")
@@ -169,4 +167,67 @@ pub(super) fn draw_energy_bar(ctx: &egui::Context, visualizatio_state: &Visualiz
                 ui.strong(format!("{plus_or_not}{energy_difference}"));
             });
         });
+}
+
+pub(super) fn draw_history_cache(gui_ctx: &mut GuiContext, visualizatio_state: &VisualizationState, cached_actions: &Vec<&Record>) {
+    egui::Window::new("Robot action history")
+        .default_pos((visualizatio_state.grid_canvas_properties.grid_canvas_origin_x + visualizatio_state.grid_canvas_properties.grid_canvas_width + 40.0, 500.0))
+        .show(gui_ctx, |ui| {
+            let table = TableBuilder::new(ui)
+            .striped(true)
+            .resizable(false)
+            .cell_layout(Layout::left_to_right(egui::Align::Center))
+            .column(Column::auto())
+            .column(Column::remainder())
+            .min_scrolled_height(0.0);
+
+            table
+            .header(20.0, |mut header| {
+                header.col(|ui| {
+                    ui.strong("Position");
+                });
+                header.col(|ui| {
+                    ui.strong("Action");
+                });
+            })
+            .body(|mut body|
+                for action_record in cached_actions.iter() {
+                    let row_height = 20.0 ;
+                    body.row(row_height, |mut row| {
+                        row.col(|ui| {
+                            ui.label(format!("{},{}", action_record.position.0, action_record.position.1));
+                        });
+                        row.col(|ui| {
+                            ui.label(cache_action_to_string(&action_record.action));
+                        });
+                    });
+        });
+    });
+}
+
+fn cache_action_to_string(action: &Action) -> String {
+    match action {
+        Action::Craft(content) => format!("Craft: {}", content),
+        Action::Destroy(direction) => format!("Destroy: {}", direction_to_string(direction)),
+        Action::DiscoverTiles(tiles) => format!("Discover tiles: {:?}", tiles),
+        Action::GetScore() => format!("Get score"),
+        Action::Go(direction) => format!("Go: {:}", direction_to_string(direction)),
+        Action::LookAtSky() => format!("Look at sky"),
+        Action::OneDirectionView(direction, distance) => format!("One directional view: {:}, distance {}", direction_to_string(direction), distance),
+        Action::Put(content, amount, direction) => format!("Put {} of {}: {}", amount, content, direction_to_string(direction)),
+        Action::RobotMap() => format!("Robot map"),
+        Action::RobotView() => format!("Robot view"),
+        Action::Teleport((x,y)) => format!("Teleport ({},{})", x, y),
+        Action::WhereAmI() => format!("Where am I"),
+    }        
+}
+
+fn direction_to_string(direction: &Direction) -> String {
+    let string = match direction {
+        Direction::Up => "Up",
+        Direction::Down => "Down",
+        Direction::Left => "Left",
+        Direction::Right => "Right",
+    };
+    string.to_owned()
 }
