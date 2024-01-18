@@ -2,7 +2,7 @@ use std::{sync::mpsc::{Receiver, self}, collections::HashMap};
 
 use egui::{Visuals, Context};
 use egui_extras::install_image_loaders;
-use ggegui::{egui::{self}, Gui};
+use ggegui::{egui::{self}, Gui, GuiContext};
 use ggez::{event::{EventHandler, self}, graphics::{self, Color, DrawParam}, GameError, glam};
 use oxagworldgenerator::world_generator::OxAgWorldGenerator;
 use rand::{rngs::ThreadRng, seq::SliceRandom};
@@ -11,7 +11,7 @@ use rstykrab_cache::Cache;
 
 use crate::{oh_crab_visualizer::visualizer::{draw_utils::{self, GridCanvasProperties}, visualizer_debug, egui_utils}, println_d};
 
-use super::{visualizable_robot::{VisualizableRobot, RobotCreator, InitStateChannelItem}, Coord, visualizer_event_listener::{VisualizerEventListener, ChannelItem}, egui_utils::EguiImages};
+use super::{visualizable_robot::{VisualizableRobot, RobotCreator, InitStateChannelItem}, Coord, visualizer_event_listener::{VisualizerEventListener, ChannelItem, InterfaceInvocation}, egui_utils::EguiImages};
 
 pub(super) const TILE_SIZE_MIN:f32 = 5.0;
 pub(super) const TILE_SIZE_MAX:f32 = 120.8;
@@ -326,6 +326,15 @@ impl OhCrabVisualizer {
         }
     }
 
+    fn move_camera_if_world_is_zoomed_out(&mut self) {
+        // move camera if the world is zoomed out
+        if let Some(world_map) = &self.world_state.world_map {
+            let (scroll_limit_x, scroll_limit_y) = self.visualization_state.get_scroll_limit(world_map.len());
+            self.visualization_state.offset_x = f32::min(self.visualization_state.offset_x, scroll_limit_x);
+            self.visualization_state.offset_y = f32::min(self.visualization_state.offset_y, scroll_limit_y);
+        }
+    }
+
     fn simulation_should_end(&self) -> bool {
         match self.run_mode {
             RunMode::Interactive => false,
@@ -339,20 +348,9 @@ impl OhCrabVisualizer {
             RunMode::NonInteractive(_) => false,
         }
     }
-}
 
-impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
-    fn update(&mut self, ctx: &mut ggez::Context) -> Result<(), OhCrabVisualizerError> {
-        //println_d!("VISUALIZER UPDATE, TICK COUNT: {}", self.tick_counter);
-        if self.tick_counter == 0 {
-            let (x, y) = ctx.gfx.size();
-            let size = f32::min(x, y);
-            self.init_state(size)?;
-        }
-        
+    fn add_control_panel(&mut self, gui_ctx: &mut GuiContext) -> Result<(), OhCrabVisualizerError> {
         let mut res: Result<(), OhCrabVisualizerError> = Ok(());
-        let gui_ctx = &mut self.gui.ctx();
-        gui_ctx.set_visuals(Visuals::dark());
         egui::Window::new("Scroll world").show(&gui_ctx, |ui: &mut egui::Ui| {
             if let Some(world_map) = &self.world_state.world_map {
                 let (scroll_limit_x, scroll_limit_y) = self.visualization_state.get_scroll_limit(world_map.len());
@@ -392,140 +390,194 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
             // }
         });
 
+        if res.is_err() {
+            return res;
+        }
+        Ok(())
+    }
+
+    fn register_egui_windows(&mut self, ctx: &mut ggez::Context) -> Result<(), OhCrabVisualizerError> {
+        let gui_ctx = &mut self.gui.ctx();
+        gui_ctx.set_visuals(Visuals::dark());
+       
+        self.add_control_panel(gui_ctx)?;
         egui_utils::draw_backpack(gui_ctx, &self.visualization_state, &self.world_state.backpack, &self.egui_images);
         egui_utils::draw_time(gui_ctx, &self.visualization_state, &self.world_time, self.tick_counter, self.simulation_should_end(), &self.egui_images);
         egui_utils::draw_energy_bar(gui_ctx, &self.visualization_state, self.world_state.robot_energy, self.world_state.previous_tick_energy_difference, &self.egui_images);
         let cached_actions = self.action_cache.get_recent_actions(self.action_cache.get_size()).unwrap();
         egui_utils::draw_history_cache(gui_ctx, &self.visualization_state, &cached_actions, &self.egui_images);
         egui_utils::draw_rizler_message(gui_ctx, &self.visualization_state, &self.world_state.rizler_message);
-
-
+        
         self.gui.update(ctx);
-        if res.is_err() {
-            return res;
-        }
+        Ok(())
+    }
 
-        // move camera if the world is zoomed out
-        if let Some(world_map) = &self.world_state.world_map {
-            let (scroll_limit_x, scroll_limit_y) = self.visualization_state.get_scroll_limit(world_map.len());
-            self.visualization_state.offset_x = f32::min(self.visualization_state.offset_x, scroll_limit_x);
-            self.visualization_state.offset_y = f32::min(self.visualization_state.offset_y, scroll_limit_y);
+    #[inline]
+    fn process_time_changed_event(&mut self, env_conditions: EnvironmentalConditions) {
+        println_d!("VISUALIZER: received EVENT time changed {:?}", (env_conditions));
+        self.world_time.update_from_env_conditions(&env_conditions);
+    }
+
+    #[inline]
+    fn process_day_changed_event(&mut self, env_conditions: EnvironmentalConditions) {
+        println_d!("VISUALIZER: received EVENT day changed {:?}", (env_conditions));
+        self.world_time.update_from_env_conditions(&env_conditions);
+        self.world_time.day_counter +=1;
+    }
+
+    #[inline]
+    fn process_energy_regarged_event(&mut self, amount: usize) {
+        println_d!("VISUALIZER: received EVENT energy recharged {:?}", (amount));
+        self.world_state.robot_energy += amount;
+        self.world_state.current_tick_energy_difference += amount as i32;
+    }
+
+    #[inline]
+    fn process_energy_consumed_event(&mut self, amount: usize) {
+        println_d!("VISUALIZER: received EVENT energy consumed {:?}", (amount));
+        self.world_state.robot_energy -= amount;
+        self.world_state.current_tick_energy_difference -=  amount as i32;
+    }
+
+    #[inline]
+    fn process_moved_event(&mut self, robot_x: usize, robot_y :usize) {
+        println_d!("VISUALIZER: received robot moved {:?}", (robot_x, robot_y));
+        self.world_state.robot_position = Some(Coord{x:robot_x, y:robot_y });
+    }
+
+    #[inline]
+    fn process_tile_content_update_event(&mut self, tile: Tile, tile_x: usize, tile_y: usize) {
+        println_d!("VISUALIZER: received tile content update.");
+        if let Some(world_map) = &mut self.world_state.world_map{
+            world_map[tile_y][tile_x] = tile;
+        }
+    }
+
+    #[inline]
+    fn process_added_to_backpack_event(&mut self, content: Content, amount: usize) {
+        println_d!("VISUALIZER: added to backpack: {:?}, {:?}.", content, amount);
+        *self.world_state.backpack.entry(content.clone()).or_insert(0) += amount;
+        println_d!("   current amount {:?} of {:?} after add", self.world_state.backpack.get(&content), content.to_string());
+    }
+
+    #[inline]
+    fn process_removed_from_backpack_event(&mut self,  content: Content, amount: usize) {
+        println!("VISUALIZER: removed from backpack: {:?}, {:?}.", content, amount);
+        if let Some(current_amount) = self.world_state.backpack.get_mut(&content) {
+            if *current_amount > amount {
+                *current_amount -= amount;
+                println_d!("   current amount {:?} of {:?} after remove", *current_amount, content.to_string());
+            } else {
+                self.world_state.backpack.remove(&content);
+            }
+        }
+    }
+
+    #[inline]
+    fn process_interface_invocation_record(&mut self, interface_invocation: InterfaceInvocation) {
+        println_d!("VISULAZER: received interface invocation: {:?}", interface_invocation);
+
+        // history cache
+        self.action_cache.add_record(interface_invocation.interface_action, (interface_invocation.robot_position.x, interface_invocation.robot_position.y));
+       
+        //rizzler
+        if let Some(meesage) = interface_invocation.riz_message {
+            self.world_state.rizzler_messages.push(meesage);
+        }
+    }
+
+    fn process_robotic_lib_event(&mut self) -> Result<(), OhCrabVisualizerError> {
+                //println_d!("VISUALIZER UPDATE, receiving from robot channel.");
+                let received_state = self.robot_receiver.try_recv();
+
+                match received_state {
+                    Ok(channel_item) => {
+                        //println_d!("VISUALIZER UPDATE, received item {:?}.", channel_item);
+                        //timer::sleep(std::time::Duration::from_millis(self.delay_in_milis)); // TODO: why is this sleep there and not somewhere else?
+                        match  channel_item {
+                            ChannelItem::EventChannelItem(event) => {
+                                match event {
+                                    // RobotEvent::Ready => todo!(),
+                                    // RobotEvent::Terminated => todo!(),
+                                    RobotEvent::TimeChanged(env_conditions) => {
+                                        self.process_time_changed_event(env_conditions);
+                                    }
+                                    RobotEvent::DayChanged(env_conditions) => {
+                                        self.process_day_changed_event(env_conditions);
+                                    }
+                                    RobotEvent::EnergyRecharged(amount) => {
+                                        self.process_energy_regarged_event(amount);
+                                    },
+                                    RobotEvent::EnergyConsumed(amount) => {
+                                        self.process_energy_consumed_event(amount);
+                                    },
+                                    RobotEvent::Moved(_, (robot_y, robot_x)) => { // BEWARE: library has x and y switched in Move event
+                                        self.process_moved_event(robot_x, robot_y);
+                                    }
+                                    RobotEvent::TileContentUpdated(tile, (tile_y, tile_x)) => {
+                                        self.process_tile_content_update_event(tile, tile_x, tile_y);
+                                    }
+                                    RobotEvent::AddedToBackpack(content, amount) => {
+                                        self.process_added_to_backpack_event(content, amount);
+                                    }
+                                    RobotEvent::RemovedFromBackpack(content, amount) => {
+                                        self.process_removed_from_backpack_event(content, amount);
+                                    }
+                                    _ => {
+                                        println_d!("VISUALIZER: {:?}", event);
+                                    }
+                                }
+                            }
+                            ChannelItem::InterfaceChannelItem(interface_invocation) => {
+                                self.process_interface_invocation_record(interface_invocation);
+                            }
+                        }
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Empty) => {
+                        //println_d!("VISUALIZER: channel empty, execution another world tick.");
+                        self.world_tick_in_progress = false;
+                        if !self.is_interactive() {
+                            self.do_world_tick()?;
+                        }
+                    }
+                    Err(error) => {
+                        println_d!("VISUALIZER: try receive error: {:?}.", error);
+                        return Err(OhCrabVisualizerError::DataError(DataChannelError::TryRecvError(error)));
+                    }
+                }
+                Ok(())
+    }
+}
+
+impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
+    fn update(&mut self, ctx: &mut ggez::Context) -> Result<(), OhCrabVisualizerError> {
+        //println_d!("VISUALIZER UPDATE, TICK COUNT: {}", self.tick_counter);
+        if self.tick_counter == 0 {
+            let (x, y) = ctx.gfx.size();
+            let size = f32::min(x, y);
+            self.init_state(size)?;
         }
         
+        self.register_egui_windows(ctx)?;
+        self.move_camera_if_world_is_zoomed_out();
+
         if self.simulation_should_end() {
             //_ctx.request_quit();
             println_d!("empty update");
             return Ok(());
         }
 
-        //println_d!("VISUALIZER UPDATE, receiving from robot channel.");
-        let received_state = self.robot_receiver.try_recv();
-
-        match received_state {
-            Ok(channel_item) => {
-                //println_d!("VISUALIZER UPDATE, received item {:?}.", channel_item);
-                //timer::sleep(std::time::Duration::from_millis(self.delay_in_milis)); // TODO: why is this sleep there and not somewhere else?
-                match  channel_item {
-                    ChannelItem::EventChannelItem(event) => {
-                        match event {
-                            // RobotEvent::Ready => todo!(),
-                            // RobotEvent::Terminated => todo!(),
-                            RobotEvent::TimeChanged(env_conditions) => {
-                                println_d!("VISUALIZER: received EVENT time changed {:?}", (env_conditions));
-                                self.world_time.update_from_env_conditions(&env_conditions);
-                            }
-                            RobotEvent::DayChanged(env_conditions) => {
-                                println_d!("VISUALIZER: received EVENT day changed {:?}", (env_conditions));
-                                self.world_time.update_from_env_conditions(&env_conditions);
-                                self.world_time.day_counter +=1;
-                            }
-                            RobotEvent::EnergyRecharged(amount) => {
-                                println!("VISUALIZER: received EVENT energy recharged {:?}", (amount));
-                                self.world_state.robot_energy += amount;
-                                self.world_state.current_tick_energy_difference += amount as i32;
-                            },
-                            RobotEvent::EnergyConsumed(amount) => {
-                                println!("VISUALIZER: received EVENT energy consumed {:?}", (amount));
-                                self.world_state.robot_energy -= amount;
-                                self.world_state.current_tick_energy_difference -=  amount as i32;
-                            },
-                            RobotEvent::Moved(_, (robot_y, robot_x)) => { // BEWARE: library has x and y switched in Move event
-                                println_d!("VISUALIZER: received robot moved {:?}", (robot_x, robot_y));
-                                self.world_state.robot_position = Some(Coord{x:robot_x, y:robot_y });
-                            }
-                            RobotEvent::TileContentUpdated(tile, (tile_y, tile_x)) => {
-                                println_d!("VISUALIZER: received tile content update.");
-                                if let Some(world_map) = &mut self.world_state.world_map{
-                                    world_map[tile_y][tile_x] = tile;
-                                }
-                            }
-                            RobotEvent::AddedToBackpack(content, amount) => {
-                                println_d!("VISUALIZER: added to backpack: {:?}, {:?}.", content, amount);
-                                *self.world_state.backpack.entry(content.clone()).or_insert(0) += amount;
-                                println_d!("   current amount {:?} of {:?} after add", self.world_state.backpack.get(&content), content.to_string());
-                            }
-                            RobotEvent::RemovedFromBackpack(content, amount) => {
-                                println!("VISUALIZER: removed from backpack: {:?}, {:?}.", content, amount);
-                                if let Some(current_amount) = self.world_state.backpack.get_mut(&content) {
-                                    if *current_amount > amount {
-                                        *current_amount -= amount;
-                                        println_d!("   current amount {:?} of {:?} after remove", *current_amount, content.to_string());
-                                    } else {
-                                        self.world_state.backpack.remove(&content);
-                                    }
-                                }
-                            }
-                            _ => {
-                                println_d!("VISUALIZER: {:?}", event);
-                            }
-                        }
-                    }
-                    ChannelItem::InterfaceChannelItem(interface_invocation) => {
-                        println_d!("VISULAZER: received interface invocation: {:?}", interface_invocation);
-                        self.action_cache.add_record(interface_invocation.interface_action, (interface_invocation.robot_position.x, interface_invocation.robot_position.y));
-                        if let Some(meesage) = interface_invocation.riz_message {
-                            self.world_state.rizzler_messages.push(meesage);
-                        }
-                    }
-                }
-            }
-            Err(std::sync::mpsc::TryRecvError::Empty) => {
-                //println_d!("VISUALIZER: channel empty, execution another world tick.");
-                self.world_tick_in_progress = false;
-                if !self.is_interactive() {
-                    self.do_world_tick()?;
-                }
-            }
-            Err(error) => {
-                println_d!("VISUALIZER: try receive error: {:?}.", error);
-                return Err(OhCrabVisualizerError::DataError(DataChannelError::TryRecvError(error)));
-            }
-        }
+        self.process_robotic_lib_event()?;
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut ggez::Context) -> Result<(), OhCrabVisualizerError> {
-        // world map
         if let Some(world_map) = &self.world_state.world_map {
             let mut canvas = graphics::Canvas::from_frame(ctx, graphics::Color::BLACK);
-            
-            // let world_dimension = world_map.len();
-            // let (x, y) = ctx.gfx.size();
-            // let size = f32::min(x, y);
-            // let tile_size = 64 as f32; //(size / world_dimension as f32) - 10 as f32;
 
             draw_utils::draw_grid(ctx, &mut canvas, &self.visualization_state, world_map, &self.world_state.robot_position)?;
             canvas.draw(&self.gui, DrawParam::default().dest(glam::Vec2::new(400.0, 400.0)));
             
-            // let x_tick_count = (tile_size * world_dimension as f32) + (tile_size*3.0);
-            // let y_tick_count = tile_size;
-            // let text_size = tile_size * 0.18;
-            // draw_utils::draw_text(&mut  canvas, x_tick_count, y_tick_count, Color::WHITE, text_size, format!("TICK: {}", self.tick_counter));
-
-            // if self.simulation_should_end() {
-            //     draw_utils::draw_text(&mut  canvas, x_tick_count, y_tick_count + text_size * 1.2, Color::WHITE, text_size, format!("SIMULATION DONE"));
-            // }
-
             match canvas.finish(ctx) {
                 Ok(_) => Ok(()),
                 Err(error) => Err(OhCrabVisualizerError::GraphicsLibraryError(error)),
