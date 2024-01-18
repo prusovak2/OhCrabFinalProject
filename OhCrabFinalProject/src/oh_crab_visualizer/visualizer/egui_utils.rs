@@ -9,12 +9,17 @@ use rstykrab_cache::{Record, Action};
 use super::visualizer::{VisualizationState, WorldTime, MAX_ENERGY_LEVEL};
 
 const COLON_KEY:u8 = 42;
+const DIRECTION_UP:u8 = 0;
+const DIRECTION_RIGHT:u8 = 1;
+const DIRECTION_DOWN:u8 = 2;
+const DIRECTION_LEFT:u8 = 3;
 
 pub(super) struct EguiImages<'a> {
     content_images: HashMap<Content, Image<'a>>,
     weather_images: HashMap<WeatherType, (String, Image<'a>)>,
     digit_images: HashMap<u8, Image<'a>>,
-    energy: Image<'a>
+    energy: Image<'a>,
+    direction_images: HashMap<u8, Image<'a>>,
 }
 
 impl<'a> EguiImages<'a> {
@@ -60,9 +65,29 @@ impl<'a> EguiImages<'a> {
 
         let energy= egui::Image::new(egui::include_image!("assets\\energy.png"));
 
-        EguiImages { content_images: content_map, weather_images: weather_map, digit_images: digit_map, energy:energy }
+        let mut direction_map: HashMap<u8, Image<'a>> = HashMap::new();
+        direction_map.insert(DIRECTION_UP, egui::Image::new(egui::include_image!("assets\\direction\\up.png")));
+        direction_map.insert(DIRECTION_RIGHT, egui::Image::new(egui::include_image!("assets\\direction\\right.png")));
+        direction_map.insert(DIRECTION_DOWN, egui::Image::new(egui::include_image!("assets\\direction\\down.png")));
+        direction_map.insert(DIRECTION_LEFT, egui::Image::new(egui::include_image!("assets\\direction\\left.png")));
+
+        EguiImages { content_images: content_map, weather_images: weather_map, digit_images: digit_map, energy:energy, direction_images: direction_map }
+    }
+
+    fn get_image_for_direction(&self, direction: &Direction) -> Image<'a> {
+        match direction {
+            Direction::Up => self.direction_images.get(&DIRECTION_UP).unwrap().clone(),
+            Direction::Down => self.direction_images.get(&DIRECTION_DOWN).unwrap().clone(),
+            Direction::Left => self.direction_images.get(&DIRECTION_LEFT).unwrap().clone(),
+            Direction::Right => self.direction_images.get(&DIRECTION_RIGHT).unwrap().clone(),
+        }
+    }
+
+    fn get_image_for_content(&self, content: &Content) -> Image<'a> {
+        self.content_images.get(content).unwrap().clone()
     }
 }
+
 
 pub(super) fn draw_backpack(gui_ctx: &mut GuiContext, visualizatio_state: &VisualizationState, backpack: &HashMap<Content, usize>, egui_images: &EguiImages) {
     egui::Window::new("Backpack")
@@ -169,7 +194,7 @@ pub(super) fn draw_energy_bar(ctx: &egui::Context, visualizatio_state: &Visualiz
         });
 }
 
-pub(super) fn draw_history_cache(gui_ctx: &mut GuiContext, visualizatio_state: &VisualizationState, cached_actions: &Vec<&Record>) {
+pub(super) fn draw_history_cache(gui_ctx: &mut GuiContext, visualizatio_state: &VisualizationState, cached_actions: &Vec<&Record>, egui_images: &EguiImages) {
     egui::Window::new("Robot action history")
         .default_pos((visualizatio_state.grid_canvas_properties.grid_canvas_origin_x + visualizatio_state.grid_canvas_properties.grid_canvas_width + 40.0, 500.0))
         .show(gui_ctx, |ui| {
@@ -179,6 +204,7 @@ pub(super) fn draw_history_cache(gui_ctx: &mut GuiContext, visualizatio_state: &
             .cell_layout(Layout::left_to_right(egui::Align::Center))
             .column(Column::auto())
             .column(Column::remainder())
+            .column(Column::auto())
             .min_scrolled_height(0.0);
 
             table
@@ -189,36 +215,45 @@ pub(super) fn draw_history_cache(gui_ctx: &mut GuiContext, visualizatio_state: &
                 header.col(|ui| {
                     ui.strong("Action");
                 });
+                header.col(|ui| {
+                    ui.label("        ");
+                });
             })
             .body(|mut body|
                 for action_record in cached_actions.iter() {
                     let row_height = 20.0 ;
                     body.row(row_height, |mut row| {
+                        let (action_label, image) = cache_action_to_visualization(action_record.action(), &egui_images);
                         row.col(|ui| {
                             ui.label(format!("{},{}", action_record.position.0, action_record.position.1));
                         });
                         row.col(|ui| {
-                            ui.label(cache_action_to_string(&action_record.action));
+                            ui.label(action_label);
+                        });
+                        row.col(|ui| {
+                            if let Some(image) = image {
+                                ui.add(image);
+                            }
                         });
                     });
         });
     });
 }
 
-fn cache_action_to_string(action: &Action) -> String {
+fn cache_action_to_visualization<'a>(action: &Action, images: &EguiImages<'a>) -> (String, Option<Image<'a>>) {
     match action {
-        Action::Craft(content) => format!("Craft: {}", content),
-        Action::Destroy(direction) => format!("Destroy: {}", direction_to_string(direction)),
-        Action::DiscoverTiles(tiles) => format!("Discover tiles: {:?}", tiles),
-        Action::GetScore() => format!("Get score"),
-        Action::Go(direction) => format!("Go: {:}", direction_to_string(direction)),
-        Action::LookAtSky() => format!("Look at sky"),
-        Action::OneDirectionView(direction, distance) => format!("One directional view: {:}, distance {}", direction_to_string(direction), distance),
-        Action::Put(content, amount, direction) => format!("Put {} of {}: {}", amount, content, direction_to_string(direction)),
-        Action::RobotMap() => format!("Robot map"),
-        Action::RobotView() => format!("Robot view"),
-        Action::Teleport((x,y)) => format!("Teleport ({},{})", x, y),
-        Action::WhereAmI() => format!("Where am I"),
+        Action::Craft(content) => (format!("Craft: {}", content), Some(images.get_image_for_content(content))),
+        Action::Destroy(direction) => (format!("Destroy: {}", direction_to_string(direction)), Some(images.get_image_for_direction(direction))),
+        Action::DiscoverTiles(tiles) => (format!("Discover tiles: {:?}", tiles), None),
+        Action::GetScore() => (format!("Get score"), None),
+        Action::Go(direction) => (format!("Go: {:}", direction_to_string(direction)), Some(images.get_image_for_direction(direction))),
+        Action::LookAtSky() => (format!("Look at sky"), None),
+        Action::OneDirectionView(direction, distance) => (format!("One directional view: {:}, distance {}", direction_to_string(direction), distance), Some(images.get_image_for_direction(direction)) ),
+        Action::Put(content, amount, direction) => (format!("Put {} of {}: {}", amount, content, direction_to_string(direction)), Some(images.get_image_for_content(content))),
+        Action::RobotMap() => (format!("Robot map"), None),
+        Action::RobotView() => (format!("Robot view"), None),
+        Action::Teleport((x,y)) => (format!("Teleport ({},{})", x, y), None),
+        Action::WhereAmI() => (format!("Where am I"), None)
     }        
 }
 
