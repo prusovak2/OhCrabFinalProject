@@ -104,7 +104,7 @@ pub(super) fn draw_backpack(gui_ctx: &mut GuiContext, visualizatio_state: &Visua
 
 pub(super) fn draw_time(gui_ctx: &mut GuiContext, visualizatio_state: &VisualizationState, world_time: &WorldTime, num_ticks: usize, simulation_finished: bool, egui_images: &EguiImages){
     egui::Window::new("Time")
-        .default_pos((visualizatio_state.grid_canvas_properties.grid_canvas_origin_x + visualizatio_state.grid_canvas_properties.grid_canvas_width + 205.0, 110.0))
+        .default_pos((visualizatio_state.grid_canvas_properties.grid_canvas_origin_x + visualizatio_state.grid_canvas_properties.grid_canvas_width + 215.0, 110.0))
         .show(&gui_ctx, |ui| {
             //ui.label(format!("{}:{}", world_time.hours, world_time.minutes));
             ui.horizontal(|ui| {
@@ -165,7 +165,8 @@ pub(super) fn draw_energy_bar(ctx: &egui::Context, visualizatio_state: &Visualiz
 
             ui.horizontal(|ui| {
                 ui.add(egui_images.energy.clone());
-                ui.strong(format!("{energy_difference}"));
+                let plus_or_not = if energy_difference > 0 {"+"} else {""};
+                ui.strong(format!("{plus_or_not}{energy_difference}"));
             });
         });
 }
