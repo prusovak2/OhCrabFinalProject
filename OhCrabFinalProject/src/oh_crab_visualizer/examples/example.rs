@@ -9,12 +9,12 @@ pub fn visualizer_nonteractive(){
 
     let config = OhCrabVisualizerConfig::new(RunMode::NonInteractive(400), true);
     let visualizer = OhCrabVisualizer::new(robot_factory, world_generator, config);
-    
+
     //visualizer.simulate().unwrap();
     match visualizer.run() {
         Ok(_) => {}
         Err(err) => println!("Visualizer run returned error {:?}", err),
-    } 
+    }
 }
 
 pub fn visualizer_interactive(){
@@ -38,9 +38,9 @@ pub fn visualizer_smaller(){
 
     let config = OhCrabVisualizerConfig::new(RunMode::NonInteractive(400), false);
     let visualizer = OhCrabVisualizer::new(robot_factory, world_generator, config);
-    
+
     match visualizer.run() {
         Ok(_) => {}
         Err(err) => println!("Visualizer run returned error {:?}", err),
-    } 
+    }
 }
