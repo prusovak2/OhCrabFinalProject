@@ -32,8 +32,8 @@ pub struct DistributorRobot{
 
 impl DistributorRobot{
     pub fn exploration_phase(&mut self, world: &mut robotics_lib::world::World)-> Result<(), LibError> {
-        let _ = robot_view(self, world);
-        let robot_world = robot_map(world).unwrap();
+        let _ = VisualizableInterfaces::robot_view(self, world);
+        let robot_world = VisualizableInterfaces::robot_map(self, world).unwrap();
         if self.world_size == 0 {
             println!("Map len of the robot is {:?}", robot_world.len());
             println!("Tile at position 0, 0 is {:?}", robot_world[0][0].clone());
@@ -47,7 +47,7 @@ impl DistributorRobot{
         //     println!("Robots energy is {}", self.get_energy().get_energy_level());
         // }
 
-        let view_output = one_direction_view(self, world, Direction::Up, self.world_size)?;
+        let view_output = VisualizableInterfaces::one_direction_view(self, world, Direction::Up, self.world_size)?;
         let furthest_top_coordinates = &view_output[view_output.len()-1];
 
         // check if there exists a path going to any of those top high and top bottom coordinates
@@ -70,7 +70,7 @@ impl DistributorRobot{
             }
         }
 
-        let view_output = one_direction_view(self, world, Direction::Down, self.world_size)?;
+        let view_output = VisualizableInterfaces::one_direction_view(self, world, Direction::Down, self.world_size)?;
         let furthest_bottom_coordinates = &view_output[view_output.len()-1];
         // check if there exists a path going to any of those top high and top bottom coordinates
         let mut bottom_coordinates: Option<(usize, usize)> = None;
@@ -98,8 +98,8 @@ impl DistributorRobot{
             let bottom_coordinates = bottom_coordinates.unwrap();
 
             // check also right and left
-            let _ = one_direction_view(self, world, Direction::Left, self.world_size)?;
-            let _ = one_direction_view(self, world, Direction::Right, self.world_size)?;
+            let _ = VisualizableInterfaces::one_direction_view(self, world, Direction::Left, self.world_size)?;
+            let _ = VisualizableInterfaces::one_direction_view(self, world, Direction::Right, self.world_size)?;
 
 
             if up_path_len > bottom_path_len{
@@ -107,10 +107,10 @@ impl DistributorRobot{
                                                                              world,
                                                                              bottom_coordinates).unwrap();
                 for direction in path_to_bottom {
-                    let _ = robot_view(self, world);
+                    let _ = VisualizableInterfaces::robot_view(self, world);
                     let _ = VisualizableInterfaces::go(self, world, direction);
-                    let _ = one_direction_view(self, world, Direction::Left, self.world_size)?;
-                    let _ = one_direction_view(self, world, Direction::Right, self.world_size)?;
+                    let _ = VisualizableInterfaces::one_direction_view(self, world, Direction::Left, self.world_size)?;
+                    let _ = VisualizableInterfaces::one_direction_view(self, world, Direction::Right, self.world_size)?;
                 }
 
                 let path_up = CollectTool::return_path_to_coordinates(self,
@@ -118,10 +118,10 @@ impl DistributorRobot{
                                                                       top_coordinates).unwrap();
 
                 for direction in path_up{
-                    let _ = robot_view(self, world);
+                    let _ = VisualizableInterfaces::robot_view(self, world);
                     let _ = VisualizableInterfaces::go(self, world, direction);
-                    let _ = one_direction_view(self, world, Direction::Left, self.world_size)?;
-                    let _ = one_direction_view(self, world, Direction::Right, self.world_size)?;
+                    let _ = VisualizableInterfaces::one_direction_view(self, world, Direction::Left, self.world_size)?;
+                    let _ = VisualizableInterfaces::one_direction_view(self, world, Direction::Right, self.world_size)?;
                 }
             }
             else{
@@ -129,10 +129,10 @@ impl DistributorRobot{
                                                                           world,
                                                                           top_coordinates).unwrap();
                 for direction in path_to_top {
-                    let _ = robot_view(self, world);
+                    let _ = VisualizableInterfaces::robot_view(self, world);
                     let _ = VisualizableInterfaces::go(self, world, direction);
-                    let _ = one_direction_view(self, world, Direction::Left, self.world_size)?;
-                    let _ = one_direction_view(self, world, Direction::Right, self.world_size)?;
+                    let _ = VisualizableInterfaces::one_direction_view(self, world, Direction::Left, self.world_size)?;
+                    let _ = VisualizableInterfaces::one_direction_view(self, world, Direction::Right, self.world_size)?;
                 }
 
                 let path_bottom = CollectTool::return_path_to_coordinates(self,
@@ -143,19 +143,19 @@ impl DistributorRobot{
                 // }
 
                 for direction in path_bottom{
-                    let _ = robot_view(self, world);
+                    let _ = VisualizableInterfaces::robot_view(self, world);
                     let _ = VisualizableInterfaces::go(self, world, direction);
-                    let left = one_direction_view(self, world, Direction::Left, self.world_size)?;
-                    let right = one_direction_view(self, world, Direction::Right, self.world_size)?;
+                    let left = VisualizableInterfaces::one_direction_view(self, world, Direction::Left, self.world_size)?;
+                    let right = VisualizableInterfaces::one_direction_view(self, world, Direction::Right, self.world_size)?;
                 }
             }
         }
         else {
-            let view_output = one_direction_view(self, world, Direction::Left, self.world_size)?;
+            let view_output = VisualizableInterfaces::one_direction_view(self, world, Direction::Left, self.world_size)?;
             let furthest_left_coordinates = &view_output[view_output.len() - 1];
             println!("Furthest left coordinates are {:?}", furthest_left_coordinates);
 
-            let view_output = one_direction_view(self, world, Direction::Right, self.world_size)?;
+            let view_output = VisualizableInterfaces::one_direction_view(self, world, Direction::Right, self.world_size)?;
             let height = view_output.len() - 1;
             let width = view_output[0].len() - 1;
             let furthest_right_coordinates = &view_output[view_output.len() - 1];
@@ -191,7 +191,7 @@ impl DistributorRobot{
     }
 
     pub fn get_quantity_explored_world(&mut self, world: &mut robotics_lib::world::World) -> f32 {
-        let robot_world = robot_map(world).unwrap();
+        let robot_world = VisualizableInterfaces::robot_map(self, world).unwrap();
         let number_of_tiles: usize = robot_world.len() * robot_world.len();
         let mut non_none_tiles_counter: u32 = 0;
         for (i,row) in robot_world.iter().enumerate() {
