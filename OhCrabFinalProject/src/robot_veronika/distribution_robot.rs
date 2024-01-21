@@ -112,6 +112,10 @@ impl DistributorRobot{
                 let path_up = CollectTool::return_path_to_coordinates(self,
                                                                       world,
                                                                       top_coordinates).unwrap();
+                if self.get_energy().get_energy_level() < 500 {
+                    *self.get_energy_mut()=Dynamo::update_energy();
+                }
+
                 for direction in path_up{
                     let _ = robot_view(self, world);
                     let _ = VisualizableInterfaces::go(self, world, direction);
@@ -133,6 +137,10 @@ impl DistributorRobot{
                 let path_bottom = CollectTool::return_path_to_coordinates(self,
                                                                           world,
                                                                           bottom_coordinates).unwrap();
+                if self.get_energy().get_energy_level() < 500 {
+                    *self.get_energy_mut()=Dynamo::update_energy();
+                }
+
                 for direction in path_bottom{
                     let _ = robot_view(self, world);
                     let _ = VisualizableInterfaces::go(self, world, direction);
@@ -260,6 +268,7 @@ impl<'a> Visulizable<'a> for DistributorRobot {
 impl Runnable for DistributorRobot{
     fn process_tick(&mut self, world: &mut robotics_lib::world::World) {
         self.tick_counter+=1;
+        println!("CURRENT TICK is {}", self.tick_counter);
         println!("CURRENT SCORE IS {}", get_score(world));
         println!("Robot's position {:?}", self.robot.coordinate);
         if self.exploration_finished == false {
@@ -277,6 +286,9 @@ impl Runnable for DistributorRobot{
         // BEWARE - for a visualizer to work it is necessary to call this method from
         // handle_event method of your robot
         self.visualizer_event_listener.handle_event(&event);
+        // if self.get_energy().get_energy_level() < 100 {
+        //     *self.get_energy_mut()=Dynamo::update_energy();
+        // }
     }
 
     fn get_energy(&self) -> &robotics_lib::energy::Energy {

@@ -7,7 +7,7 @@ pub fn run_distribution_robot(){
     let world_generator = crate::world_gen_utils::load_or_generate_world(20, 420);
 
     let config = OhCrabVisualizerConfig::new(RunMode::Interactive, false, 500);
-    //let config = OhCrabVisualizerConfig::new(RunMode::NonInteractive(400), true, 500);
+    //let config = OhCrabVisualizerConfig::new(RunMode::NonInteractive(4), false, 500); //400
     let mut visualizer = OhCrabVisualizer::new(robot_factory, world_generator, config);
 
     //visualizer.simulate().unwrap();
