@@ -435,8 +435,9 @@ impl OhCrabVisualizer {
     #[inline]
     fn process_energy_consumed_event(&mut self, amount: usize) {
         println_d!("VISUALIZER: received EVENT energy consumed {:?}", (amount));
-        self.world_state.robot_energy -= amount;
-        self.world_state.current_tick_energy_difference -=  amount as i32;
+        let to_subtract = usize::min(amount, self.world_state.robot_energy); // to prevent subtract with overflow
+        self.world_state.robot_energy -= to_subtract;
+        self.world_state.current_tick_energy_difference -= to_subtract as i32;
     }
 
     #[inline]
