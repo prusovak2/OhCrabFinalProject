@@ -11,7 +11,7 @@ use rstykrab_cache::Cache;
 
 use crate::{oh_crab_visualizer::visualizer::{draw_utils::{self, GridCanvasProperties}, visualizer_debug, egui_utils}, println_d};
 
-use super::{visualizable_robot::{VisualizableRobot, RobotCreator, InitStateChannelItem}, Coord, visualizer_event_listener::{VisualizerEventListener, ChannelItem, InterfaceInvocation}, egui_utils::EguiImages};
+use super::{visualizable_robot::{VisualizableRobot, RobotCreator, InitStateChannelItem}, Coord, visualizer_event_listener::{VisualizerEventListener, ChannelItem, InterfaceInvocation}, egui_utils::EguiImages, draw_utils::GgezImages};
 
 pub(super) const TILE_SIZE_MIN:f32 = 5.0;
 pub(super) const TILE_SIZE_MAX:f32 = 120.8;
@@ -33,6 +33,7 @@ pub struct OhCrabVisualizer {
     
     gui: Gui,
     egui_images: EguiImages<'static>,
+    ggez_images: GgezImages,
 
     // configuration
     run_mode: RunMode,
@@ -209,6 +210,7 @@ impl OhCrabVisualizer {
             visualization_state: VisualizationState::default(),
             world_tick_in_progress: false,
             egui_images: EguiImages::init(),
+            ggez_images: GgezImages::empty(),
             rng: rand::thread_rng()
         }
     }
@@ -230,6 +232,7 @@ impl OhCrabVisualizer {
 
     pub fn run(mut self) -> Result<(), OhCrabVisualizerError> {
         let context_builder = ggez::ContextBuilder::new("OhCrabWorld", "OhCrab")
+            .add_resource_path("./assets")
             .window_mode(ggez::conf::WindowMode::default()
             .resizable(true)
             .maximized(true));
@@ -237,6 +240,7 @@ impl OhCrabVisualizer {
         match context_builder.build() {
             Ok((ctx, event_loop)) => {
                 self.gui = Gui::new(&ctx);
+                self.ggez_images = GgezImages::init(&ctx);
                 event::run(ctx, event_loop, self);
             }
             Err(error) => Err(OhCrabVisualizerError::GraphicsLibraryError(error))
@@ -576,7 +580,7 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
         if let Some(world_map) = &self.world_state.world_map {
             let mut canvas = graphics::Canvas::from_frame(ctx, graphics::Color::BLACK);
 
-            draw_utils::draw_grid(ctx, &mut canvas, &self.visualization_state, world_map, &self.world_state.robot_position)?;
+            draw_utils::draw_grid(ctx, &mut canvas, &self.visualization_state, world_map, &self.world_state.robot_position, &self.ggez_images)?;
             canvas.draw(&self.gui, DrawParam::default().dest(glam::Vec2::new(400.0, 400.0)));
             
             match canvas.finish(ctx) {

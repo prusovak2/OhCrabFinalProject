@@ -38,16 +38,31 @@ impl GridCanvasProperties {
     } 
 }
 
+pub(super) struct GgezImages {
+    robot_image: Option<Image>
+}
+
+impl GgezImages {
+    pub(super) fn init(ctx: & Context) -> GgezImages {
+        let robot_image = Image::from_path(&ctx.gfx, "/images/robot/robot_2.png").ok();
+        GgezImages { robot_image: robot_image }
+    }
+
+    pub(super) fn empty() -> GgezImages {
+        GgezImages { robot_image: None }
+    }
+}
+
 pub(super) fn draw_grid(
         ctx: &mut ggez::Context,
         canvas: &mut Canvas,
         visualization_state: &VisualizationState,
         world_map: &Vec<Vec<Tile>>,
-        robot_position: &Option<Coord>
+        robot_position: &Option<Coord>,
+        image: &GgezImages
     ) 
     -> Result<(), OhCrabVisualizerError> {
 
-    let world_dimension = world_map.len();
     let last_column = visualization_state.get_last_column_to_display();
     let last_row = visualization_state.get_last_row_to_display();
     let tile_offset_x = visualization_state.first_column_to_display();
@@ -75,7 +90,7 @@ pub(super) fn draw_grid(
     if let Some(robot_position) = robot_position {
         if visualization_state.robot_should_be_displaied(robot_position) {
             let robot_position_on_canvas = Coord {x: robot_position.x - tile_offset_x, y: robot_position.y - tile_offset_y };
-            draw_robot(&robot_position_on_canvas, ctx, canvas, tile_size, canvas_origin_x, canvas_origin_y)?;
+            draw_robot(&robot_position_on_canvas, ctx, canvas, tile_size, canvas_origin_x, canvas_origin_y, image)?;
         }
     }
     Ok(())
@@ -142,37 +157,40 @@ pub(crate) fn draw_content(canvas: &mut Canvas, content: &Content, x: f32, y:f32
     draw_text(canvas, x, y, color, size, text)
 }
 
-pub(super) fn draw_backpack(backpack: &HashMap<Content, usize>, canvas: &mut Canvas, tile_size: f32, world_dimension:usize) {
-    let x_backpack = (tile_size * world_dimension as f32) + (tile_size) + 200.0;
-    let mut y_backpack = tile_size;
-    let text_size = tile_size * 0.2;
-    let text_color = Color::WHITE;
+// pub(super) fn draw_backpack(backpack: &HashMap<Content, usize>, canvas: &mut Canvas, tile_size: f32, world_dimension:usize) {
+//     let x_backpack = (tile_size * world_dimension as f32) + (tile_size) + 200.0;
+//     let mut y_backpack = tile_size;
+//     let text_size = tile_size * 0.2;
+//     let text_color = Color::WHITE;
 
-    draw_text(canvas, x_backpack, y_backpack - text_size * 1.1, text_color, text_size, "BACKPACK:".to_owned());
-    for (content, amount) in backpack {
-        draw_text(canvas, x_backpack, y_backpack, text_color, text_size, format!("{}({})", content.to_string(), amount));
-        y_backpack += text_size * 1.1;
-    }
-}
+//     draw_text(canvas, x_backpack, y_backpack - text_size * 1.1, text_color, text_size, "BACKPACK:".to_owned());
+//     for (content, amount) in backpack {
+//         draw_text(canvas, x_backpack, y_backpack, text_color, text_size, format!("{}({})", content.to_string(), amount));
+//         y_backpack += text_size * 1.1;
+//     }
+// }
 
-fn draw_robot(robot_position: &Coord, ctx: &mut Context, canvas: &mut Canvas, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32) -> Result<(), OhCrabVisualizerError> {
+fn draw_robot(robot_position: &Coord, ctx: &mut Context, canvas: &mut Canvas, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32, images: &GgezImages) -> Result<(), OhCrabVisualizerError> {
     let x = robot_position.x;
     let y = robot_position.y;
-    let center_x = ((x as f32 + 0.25) * tile_size) + grid_canvas_origin_x;
-    let center_y = (y as f32 + 0.25) * tile_size + grid_canvas_origin_y;
+    if  tile_size >= CONTENT_TILE_SIZE_LIMIT + 10 as f32 && images.robot_image.is_some() {
+        let center_x = ((x as f32 + 0.1) * tile_size) + grid_canvas_origin_x;
+        let center_y = (y as f32 + 0.1) * tile_size + grid_canvas_origin_y;
+        let robot_image = images.robot_image.clone().unwrap();
+        let x_scale = (1.0 / (robot_image.width() as f32 / tile_size)) * 0.6;
+        let y_scale = (1.0 / (robot_image.height() as f32 / tile_size)) * 0.6;
 
-    let circle_radius = tile_size * 0.2;
-
-    if tile_size >= CONTENT_TILE_SIZE_LIMIT {
-        let robot_image = Image::from_path(&ctx.gfx, "/assets/images/robot/robot_1.png").expect("Failed to load robot picture.");
         let draw_param = graphics::DrawParam::new()
-            .dest(Point2 { x: 100.0, y:100.0})
-            .scale(Vector2 {x:0.5, y:0.5});
+            .dest(Point2 { x: center_x, y:center_y})
+            .scale(Vector2 {x:x_scale, y:y_scale});
 
         canvas.draw(&robot_image, draw_param);
         Ok(())
     }
     else{
+        let circle_radius = tile_size * 0.2;
+        let center_x = ((x as f32 + 0.25) * tile_size) + grid_canvas_origin_x;
+        let center_y = (y as f32 + 0.25) * tile_size + grid_canvas_origin_y;
         let res = graphics::Mesh::new_circle(
             ctx,
             graphics::DrawMode::fill(),
