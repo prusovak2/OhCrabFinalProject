@@ -39,17 +39,31 @@ impl GridCanvasProperties {
 }
 
 pub(super) struct GgezImages {
-    robot_image: Option<Image>
+    robot_image: Option<Image>,
+    tile_images: HashMap<TileType, Image>
 }
 
 impl GgezImages {
     pub(super) fn init(ctx: & Context) -> GgezImages {
         let robot_image = Image::from_path(&ctx.gfx, "/images/robot/robot_2.png").ok();
-        GgezImages { robot_image: robot_image }
+        let mut tile_images: HashMap<TileType, Image> = HashMap::new();
+        tile_images.insert(TileType::DeepWater, Image::from_path(&ctx.gfx, "/images/tiles/deep_water.png").expect("failed to load tile image"));
+        tile_images.insert(TileType::ShallowWater, Image::from_path(&ctx.gfx, "/images/tiles/shallow_water.png").expect("failed to load tile image"));
+        tile_images.insert(TileType::Sand, Image::from_path(&ctx.gfx, "/images/tiles/sand.png").expect("failed to load tile image"));
+        tile_images.insert(TileType::Grass, Image::from_path(&ctx.gfx, "/images/tiles/grass.png").expect("failed to load tile image"));
+        tile_images.insert(TileType::Street, Image::from_path(&ctx.gfx, "/images/tiles/street.png").expect("failed to load tile image"));
+        tile_images.insert(TileType::Hill, Image::from_path(&ctx.gfx, "/images/tiles/hill.png").expect("failed to load tile image"));
+        tile_images.insert(TileType::Mountain, Image::from_path(&ctx.gfx, "/images/tiles/mountain.png").expect("failed to load tile image"));
+        tile_images.insert(TileType::Snow, Image::from_path(&ctx.gfx, "/images/tiles/snow.png").expect("failed to load tile image"));
+        tile_images.insert(TileType::Lava, Image::from_path(&ctx.gfx, "/images/tiles/lava.png").expect("failed to load tile image"));
+        tile_images.insert(TileType::Teleport(true), Image::from_path(&ctx.gfx, "/images/tiles/teleport.png").expect("failed to load tile image"));
+        tile_images.insert(TileType::Wall, Image::from_path(&ctx.gfx, "/images/tiles/wall.png").expect("failed to load tile image"));
+
+        GgezImages { robot_image: robot_image, tile_images: tile_images }
     }
 
     pub(super) fn empty() -> GgezImages {
-        GgezImages { robot_image: None }
+        GgezImages { robot_image: None, tile_images: HashMap::new() }
     }
 }
 
@@ -59,7 +73,7 @@ pub(super) fn draw_grid(
         visualization_state: &VisualizationState,
         world_map: &Vec<Vec<Tile>>,
         robot_position: &Option<Coord>,
-        image: &GgezImages
+        images: &GgezImages
     ) 
     -> Result<(), OhCrabVisualizerError> {
 
@@ -82,7 +96,7 @@ pub(super) fn draw_grid(
     for y in tile_offset_y..last_row {
         for x in tile_offset_x..last_column {
             let tile: &Tile = &world_map[y][x]; 
-            draw_tile(tile, ctx, canvas, (x-tile_offset_x) as f32, (y-tile_offset_y) as f32,  tile_size, canvas_origin_x, canvas_origin_y)?;
+            draw_tile(tile, ctx, canvas, (x-tile_offset_x) as f32, (y-tile_offset_y) as f32,  tile_size, canvas_origin_x, canvas_origin_y, images)?;
         }
     }
 
@@ -90,7 +104,7 @@ pub(super) fn draw_grid(
     if let Some(robot_position) = robot_position {
         if visualization_state.robot_should_be_displaied(robot_position) {
             let robot_position_on_canvas = Coord {x: robot_position.x - tile_offset_x, y: robot_position.y - tile_offset_y };
-            draw_robot(&robot_position_on_canvas, ctx, canvas, tile_size, canvas_origin_x, canvas_origin_y, image)?;
+            draw_robot(&robot_position_on_canvas, ctx, canvas, tile_size, canvas_origin_x, canvas_origin_y, images)?;
         }
     }
     Ok(())
@@ -117,29 +131,48 @@ fn draw_grid_frame(ctx: &mut Context, canvas: &mut Canvas, canvas_props: &GridCa
     }
 }
 
-pub fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: f32, y :f32, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32) -> Result<(), OhCrabVisualizerError> {    
-    let color = get_tile_color(&tile.tile_type);
-    let res = graphics::Mesh::new_rectangle(
-        ctx,
-        graphics::DrawMode::fill(),
-        graphics::Rect::new(
-            (x * tile_size) + grid_canvas_origin_x,
-            (y * tile_size) + grid_canvas_origin_y,
-            tile_size,
-            tile_size,
-        ),
-        color
-    );
+fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: f32, y :f32, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32, images: &GgezImages) -> Result<(), OhCrabVisualizerError> {    
+    let tile_x = (x * tile_size) + grid_canvas_origin_x;
+    let tile_y = (y * tile_size) + grid_canvas_origin_y;
+    
+    let tile_image = images.tile_images.get(&tile.tile_type);
+    if  /*tile_size >= CONTENT_TILE_SIZE_LIMIT + 10 as f32 &&*/ tile_image.is_some() {
+        let tile_image = tile_image.unwrap();
+        let x_scale = 1.0 / (tile_image.width() as f32 / tile_size);
+        let y_scale = 1.0 / (tile_image.height() as f32 / tile_size);
+        let draw_param = graphics::DrawParam::new()
+            .dest(Point2 { x: tile_x, y:tile_y})
+            .scale(Vector2 {x: x_scale, y: y_scale});
 
-    match res {
-        Ok(rect) => {
-            canvas.draw(&rect, graphics::DrawParam::default());
-            if tile_size >= CONTENT_TILE_SIZE_LIMIT {
-                draw_tile_content(canvas, &tile.content, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, color);
-            }
-            Ok(())
+        canvas.draw(tile_image, draw_param);
+        if tile_size >= CONTENT_TILE_SIZE_LIMIT {
+            draw_tile_content(canvas, &tile.content, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, Color::BLACK);
         }
-        Err(error) => Err(OhCrabVisualizerError::GraphicsLibraryError(error))
+        Ok(())
+    }
+    else {
+        let color = get_tile_color(&tile.tile_type);
+        let res = graphics::Mesh::new_rectangle(
+            ctx,
+            graphics::DrawMode::fill(),
+            graphics::Rect::new(
+                tile_x,
+                tile_y,
+                tile_size,
+                tile_size,
+            ),
+            color
+        );
+        match res {
+            Ok(rect) => {
+                canvas.draw(&rect, graphics::DrawParam::default());
+                if tile_size >= CONTENT_TILE_SIZE_LIMIT {
+                    draw_tile_content(canvas, &tile.content, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, color);
+                }
+                Ok(())
+            }
+            Err(error) => Err(OhCrabVisualizerError::GraphicsLibraryError(error))
+        }
     }
 }
 
@@ -175,8 +208,8 @@ fn draw_robot(robot_position: &Coord, ctx: &mut Context, canvas: &mut Canvas, ti
     let y = robot_position.y;
     if  tile_size >= CONTENT_TILE_SIZE_LIMIT + 10 as f32 && images.robot_image.is_some() {
         let center_x = ((x as f32 + 0.1) * tile_size) + grid_canvas_origin_x;
-        let center_y = (y as f32 + 0.1) * tile_size + grid_canvas_origin_y;
-        let robot_image = images.robot_image.clone().unwrap();
+        let center_y = ((y as f32 + 0.1) * tile_size) + grid_canvas_origin_y;
+        let robot_image: &Image = images.robot_image.as_ref().unwrap();
         let x_scale = (1.0 / (robot_image.width() as f32 / tile_size)) * 0.6;
         let y_scale = (1.0 / (robot_image.height() as f32 / tile_size)) * 0.6;
 
@@ -184,7 +217,7 @@ fn draw_robot(robot_position: &Coord, ctx: &mut Context, canvas: &mut Canvas, ti
             .dest(Point2 { x: center_x, y:center_y})
             .scale(Vector2 {x:x_scale, y:y_scale});
 
-        canvas.draw(&robot_image, draw_param);
+        canvas.draw(robot_image, draw_param);
         Ok(())
     }
     else{
