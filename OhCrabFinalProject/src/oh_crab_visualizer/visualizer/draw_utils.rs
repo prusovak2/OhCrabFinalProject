@@ -40,11 +40,13 @@ impl GridCanvasProperties {
 
 pub(super) struct GgezImages {
     robot_image: Option<Image>,
-    tile_images: HashMap<TileType, Image>
+    tile_images: HashMap<TileType, Image>,
+    content_images: HashMap<ContentType, Image>
 }
 
 impl GgezImages {
     pub(super) fn init(ctx: & Context) -> GgezImages {
+        println!("Loading pictures...");
         let robot_image = Image::from_path(&ctx.gfx, "/images/robot/robot_2.png").ok();
         let mut tile_images: HashMap<TileType, Image> = HashMap::new();
         tile_images.insert(TileType::DeepWater, Image::from_path(&ctx.gfx, "/images/tiles/deep_water.png").expect("failed to load tile image"));
@@ -59,11 +61,27 @@ impl GgezImages {
         tile_images.insert(TileType::Teleport(true), Image::from_path(&ctx.gfx, "/images/tiles/teleport.png").expect("failed to load tile image"));
         tile_images.insert(TileType::Wall, Image::from_path(&ctx.gfx, "/images/tiles/wall.png").expect("failed to load tile image"));
 
-        GgezImages { robot_image: robot_image, tile_images: tile_images }
+        let mut content_map:HashMap<ContentType, Image> = HashMap::new();
+        content_map.insert(ContentType::Fish, Image::from_path(&ctx.gfx, "/images/content/fish.png").expect("failed to load tile image"));
+        content_map.insert(ContentType::Water, Image::from_path(&ctx.gfx, "/images/content/water.png").expect("failed to load content image"));
+        content_map.insert(ContentType::Rock, Image::from_path(&ctx.gfx, "/images/content/rock.png").expect("failed to load content image"));
+        content_map.insert(ContentType::Tree, Image::from_path(&ctx.gfx, "/images/content/tree.png").expect("failed to load content image"));
+        content_map.insert(ContentType::Garbage, Image::from_path(&ctx.gfx, "/images/content/garbage.png").expect("failed to load content image"));
+        content_map.insert(ContentType::Fire, Image::from_path(&ctx.gfx, "/images/content/fire.png").expect("failed to load content image"));
+        content_map.insert(ContentType::Coin, Image::from_path(&ctx.gfx, "/images/content/coin.png").expect("failed to load content image"));
+        content_map.insert(ContentType::Bin, Image::from_path(&ctx.gfx, "/images/content/bin.png").expect("failed to load content image"));
+        content_map.insert(ContentType::Crate, Image::from_path(&ctx.gfx, "/images/content/crate.png").expect("failed to load content image"));
+        content_map.insert(ContentType::Bank, Image::from_path(&ctx.gfx, "/images/content/bank.png").expect("failed to load content image"));
+        content_map.insert(ContentType::Market, Image::from_path(&ctx.gfx, "/images/content/market.png").expect("failed to load content image"));
+        content_map.insert(ContentType::Building, Image::from_path(&ctx.gfx, "/images/content/building.png").expect("failed to load content image"));
+        content_map.insert(ContentType::Bush, Image::from_path(&ctx.gfx, "/images/content/bush.png").expect("failed to load content image"));
+        content_map.insert(ContentType::JollyBlock, Image::from_path(&ctx.gfx, "/images/content/jollyBlock.png").expect("failed to load content image"));
+        content_map.insert(ContentType::Scarecrow, Image::from_path(&ctx.gfx, "/images/content/scarecrow.png").expect("failed to load content image"));
+        GgezImages { robot_image: robot_image, tile_images: tile_images, content_images: content_map}
     }
 
     pub(super) fn empty() -> GgezImages {
-        GgezImages { robot_image: None, tile_images: HashMap::new() }
+        GgezImages { robot_image: None, tile_images: HashMap::new(), content_images:HashMap::new() }
     }
 }
 
@@ -134,6 +152,7 @@ fn draw_grid_frame(ctx: &mut Context, canvas: &mut Canvas, canvas_props: &GridCa
 fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: f32, y :f32, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32, images: &GgezImages) -> Result<(), OhCrabVisualizerError> {    
     let tile_x = (x * tile_size) + grid_canvas_origin_x;
     let tile_y = (y * tile_size) + grid_canvas_origin_y;
+    let color = get_tile_color(&tile.tile_type);
     
     let tile_image = images.tile_images.get(&tile.tile_type);
     if  /*tile_size >= CONTENT_TILE_SIZE_LIMIT + 10 as f32 &&*/ tile_image.is_some() {
@@ -146,7 +165,8 @@ fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: f32, y :f32
 
         canvas.draw(tile_image, draw_param);
         if tile_size >= CONTENT_TILE_SIZE_LIMIT {
-            draw_tile_content(canvas, &tile.content, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, Color::BLACK);
+            //draw_tile_content_image(canvas, &tile.content, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, get_content_text_color_for_tile(t), images);
+            draw_tile_content_text(canvas, &tile.content, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, get_content_text_color_for_tile(&tile.tile_type));
         }
         Ok(())
     }
@@ -167,7 +187,7 @@ fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: f32, y :f32
             Ok(rect) => {
                 canvas.draw(&rect, graphics::DrawParam::default());
                 if tile_size >= CONTENT_TILE_SIZE_LIMIT {
-                    draw_tile_content(canvas, &tile.content, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, color);
+                    draw_tile_content_text(canvas, &tile.content, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, color);
                 }
                 Ok(())
             }
@@ -176,16 +196,35 @@ fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: f32, y :f32
     }
 }
 
-pub fn draw_tile_content(canvas: &mut Canvas, content: &Content, x: f32, y:f32, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32, color: Color) {
+fn draw_tile_content_image(canvas: &mut Canvas, content: &Content, x: f32, y:f32, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32, color: Color, images: &GgezImages){
+    let image = images.content_images.get(&content_to_content_type(content));
+    if let Some(content_image) = image {
+        let content_x = ((x + 0.05) * tile_size) + grid_canvas_origin_x;
+        let content_y = ((y + 0.6) * tile_size) + grid_canvas_origin_y;
+
+        let x_scale = (1.0 / (content_image.width() as f32 / tile_size)) * 0.4;
+        let y_scale = (1.0 / (content_image.height() as f32 / tile_size)) * 0.4;
+        let draw_param = graphics::DrawParam::new()
+            .dest(Point2 { x: content_x, y:content_y})
+            .scale(Vector2 {x: x_scale, y: y_scale});
+
+        canvas.draw(content_image, draw_param);
+    }
+    else {
+        draw_tile_content_text(canvas, content, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, color)
+    }
+} 
+
+fn draw_tile_content_text(canvas: &mut Canvas, content: &Content, x: f32, y:f32, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32, color: Color) {
     let text_x = ((x + 0.05) * tile_size) + grid_canvas_origin_x;
     let text_y: f32 = ((y + 0.75) * tile_size) + grid_canvas_origin_y;
     let text_size = tile_size * 0.18;
-    let text_color = invert_color(&color);
+    //let text_color = invert_color(&color);
 
-    draw_content(canvas, content, text_x, text_y, text_size, text_color);
+    draw_content(canvas, content, text_x, text_y, text_size, color);
 }
 
-pub(crate) fn draw_content(canvas: &mut Canvas, content: &Content, x: f32, y:f32, size: f32, color: Color) {
+pub fn draw_content(canvas: &mut Canvas, content: &Content, x: f32, y:f32, size: f32, color: Color) {
     let text = get_content_string(content);
     draw_text(canvas, x, y, color, size, text)
 }
@@ -275,7 +314,7 @@ fn get_tile_color(tile_type: &TileType) -> Color {
     }
 }
 
-pub(super) fn get_content_string(content: &Content) -> String {
+fn get_content_string(content: &Content) -> String {
     match content {
         Content::Rock(val) => format!("Rock({})", val),
         Content::Tree(val) => format!("Tree({})", val),
@@ -296,6 +335,22 @@ pub(super) fn get_content_string(content: &Content) -> String {
     }
 }
 
+fn get_content_text_color_for_tile(tile_type: &TileType) -> Color {
+    match tile_type {
+        TileType::DeepWater => Color::WHITE,
+        TileType::ShallowWater => Color::WHITE,
+        TileType::Sand => Color::BLUE,
+        TileType::Grass => Color::WHITE,
+        TileType::Street => Color::WHITE,
+        TileType::Hill => Color::BLUE,
+        TileType::Mountain => Color::WHITE,
+        TileType::Snow => Color::BLACK,
+        TileType::Lava => Color::WHITE,
+        TileType::Teleport(_) => Color::WHITE,
+        TileType::Wall => Color::WHITE
+    }
+}
+
 const GRAY_TRESHOLD:f32 = 0.15;
 const COLOR_MAX:f32 = 1.0;
 
@@ -313,4 +368,45 @@ fn is_close_to_gray(color: &Color) -> bool {
     (color.r - average).abs() <= GRAY_TRESHOLD
         && (color.g - average).abs() <= GRAY_TRESHOLD
         && (color.b - average).abs() <= GRAY_TRESHOLD
+}
+
+#[derive(PartialEq, Eq, Hash)]
+enum ContentType {
+    Rock,
+    Tree,
+    Garbage,
+    Fire,
+    Coin,
+    Bin,
+    Crate,
+    Bank,
+    Water,
+    Market,
+    Fish,
+    Building,
+    Bush,
+    JollyBlock,
+    Scarecrow,
+    None,
+}
+
+fn content_to_content_type(content: &Content) -> ContentType {
+    match content {
+        Content::Rock(_) => ContentType::Rock,
+        Content::Tree(_) => ContentType::Tree,
+        Content::Garbage(_) => ContentType::Garbage,
+        Content::Fire => ContentType::Fire,
+        Content::Coin(_) => ContentType::Coin,
+        Content::Bin(_) => ContentType::Bin,
+        Content::Crate(_) => ContentType::Crate,
+        Content::Bank(_) => ContentType::Bank,
+        Content::Water(_) => ContentType::Water,
+        Content::Market(_) => ContentType::Market,
+        Content::Fish(_) => ContentType::Fish,
+        Content::Building => ContentType::Building,
+        Content::Bush(_) => ContentType::Bush,
+        Content::JollyBlock(_) => ContentType::JollyBlock,
+        Content::Scarecrow => ContentType::Scarecrow,
+        Content::None => ContentType::None,
+    }
 }
