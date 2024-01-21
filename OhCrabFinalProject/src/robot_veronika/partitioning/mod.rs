@@ -79,7 +79,8 @@ impl PartitioningProblem {
         let bin_weights : Vec<u32> = self.bin_weights(individual);
         let max_bin_weight : u32 = *bin_weights.iter().max().unwrap();
         let min_bin_weight : u32= *bin_weights.iter().min().unwrap();
-        let fitness : f32= 1.0/((max_bin_weight as f32 - min_bin_weight as f32).powf(2.0));
+        //let fitness : f32= 1.0/((max_bin_weight as f32 - min_bin_weight as f32).powf(2.0));
+        let fitness : f32= 1.0/((max_bin_weight - min_bin_weight + 1) as f32);
         let objective : u32 = max_bin_weight - min_bin_weight;
         (fitness, objective)
     }
@@ -108,8 +109,8 @@ impl PartitioningProblem {
         let mut rng = &mut rand::thread_rng();
         let mut selected: Vec<Vec<usize>> = Vec::with_capacity(self.pop_size);
         for _ in 0..self.pop_size{
-            //let v: Vec<_> = std::ops::Range{start:0, end: population.len()}.collect::<Vec<_>>().choose_multiple(&mut rng, 2).cloned().collect();
-            let v: Vec<_> = (0..population.len()).collect::<Vec<_>>().choose_multiple(&mut rng, 2).cloned().collect();
+            //let v: Vec<_> = (0..population.len()).collect::<Vec<_>>().choose_multiple(&mut rng, 2).cloned().collect();
+            let v: Vec<_>= rand::seq::index::sample(&mut rng, population.len(), 2).into_vec();
             if fitness[v[0]] > fitness[v[1]] {
                 selected.push(population[v[0]].clone());
             }
@@ -132,64 +133,55 @@ impl PartitioningProblem {
         (child1, child2)
     }
 
-    fn flip_mutate(&self, individual: &mut Vec<usize>){ //-> Vec<usize>
+    fn flip_mutate(&self, individual: &mut Vec<usize>){
         let mut rng = &mut rand::thread_rng();
         for value in individual.iter_mut() {
             if rng.gen::<f32>() < self.mut_flip_prob {
                 *value = rng.gen_range(0..self.piles) as usize;
             }
         }
-       // individual.to_vec()
     }
 
     pub fn crossover(&self, population: &mut Vec<Vec<usize>>) -> Vec<Vec<usize>> {
         let mut rng = &mut rand::thread_rng();
         let pop1: Vec<_> = population.iter().cloned().step_by(2).collect();
         let pop2: Vec<_> = population.iter().cloned().skip(1).step_by(2).collect();
-        let mut new_population = Vec::new();
+        let mut offsprings = Vec::new();
         for i in 0..pop1.len() {
-            //let v: Vec<_> = std::ops::Range{start:0, end: population.len()}.collect::<Vec<_>>().choose_multiple(&mut rng, 2).cloned().collect();
             let parent1 = &pop1[i];
             let parent2 = &pop2[i];
             if rng.gen::<f32>() < self.cx_prob {
                 let (child1, child2) = self.one_point_crossover(parent1, parent2);
-                new_population.push(child1);
-                new_population.push(child2);
+                offsprings.push(child1);
+                offsprings.push(child2);
             }
             else {
-                new_population.push(parent1.clone());
-                new_population.push(parent2.clone());
+                offsprings.push(parent1.clone());
+                offsprings.push(parent2.clone());
             }
         }
-        new_population
+        offsprings
     }
 
-    pub fn mutate(&self, population: &mut Vec<Vec<usize>>) {//-> Vec<Vec<usize>> {
+    pub fn mutate(&self, population: &mut Vec<Vec<usize>>) {
         let mut rng = &mut rand::thread_rng();
         //let mut new_population = Vec::new();
         for individual in population.iter_mut() {
             if rng.gen::<f32>() < self.mut_prob {
                 self.flip_mutate(individual);
             }
-            // else{
-            //     new_population.push(individual.clone());
-            // }
         }
-        //new_population
     }
 
     pub fn mate(&self, population: &mut Vec<Vec<usize>>) -> Vec<Vec<usize>>{
         // crossover and mutation are operators we want to apply on the population
         let mut new_population = self.crossover(population);
         self.mutate(&mut new_population);
-        //new_population = self.mutate(&mut new_population);
         new_population
     }
 
     pub fn run(&self, population: &mut Vec<Vec<usize>>) -> Vec<Vec<usize>>{
-        //let mut evaluation = 0;
         for generation in 0..self.max_gen{
-            //evaluation += population.len();
             let mut fitness: Vec<f32> = Vec::with_capacity(population.len());
             let mut objective: Vec<u32> = Vec::with_capacity(population.len());
             for individual in population.iter() {
@@ -198,10 +190,13 @@ impl PartitioningProblem {
                 objective.push(obj);
             }
             if generation % 100 == 0 {
-                info!("Generation: {}, fitness: {:?}, objective: {:?}", generation, fitness, objective);
+                info!("Generation: {}, min objective: {:?}", generation, objective.iter().min().unwrap());
+                let best_individual = population[fitness.iter().position_max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()].clone();
+                let best_objective = self.objective(&best_individual);
+                //println!("Objective of the best individual in generation {}, is {}", generation, best_objective);
             }
-            let mating_pool = self.tournament_selection(population, &fitness);
-            let mut new_population : Vec<Vec<usize>> = self.mate(population);
+            let mut mating_pool = self.tournament_selection(population, &fitness);
+            let mut new_population : Vec<Vec<usize>> = self.mate(&mut mating_pool);
             *population = new_population;
         }
         population.to_vec()
@@ -210,27 +205,29 @@ impl PartitioningProblem {
     pub fn main_exec(&self){
         let mut best_individuals = Vec::new();
         for run in 0..self.repeats {
+            if run == 0{
+                let _ = simple_logging::log_to_file("evolutionary_algo.log", LevelFilter::Info);
+            }
             let mut population : Vec<Vec<usize>>= self.create_population(self.weights.len());
             population = self.run(&mut population);
             let mut fitness: Vec<f32> = Vec::with_capacity(population.len());
             let mut objective: Vec<u32> = Vec::with_capacity(population.len());
             for individual in population.iter() {
-                let (fit, obj) = self.fitness_objective(individual); //&self.bin_weights(individual)
+                let (fit, obj) = self.fitness_objective(individual);
                 fitness.push(fit);
                 objective.push(obj);
             }
             let best_individual = population[fitness.iter().position_max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()].clone();
-            //let _ = values.into_iter().min_by(|a, b| a.partial_cmp(b).unwrap());
             best_individuals.push(best_individual.clone());
             println!("Run: {}, best individual: {:?}", run, best_individual);
             println!("Objective: {:?}", self.objective(&best_individual));
             println!("Bin Weights: {:?}", self.bin_weights(&best_individual));
-            let _ = simple_logging::log_to_file("evolutionary_algo.log", LevelFilter::Info);
             info!("Run: {}, best individual: {:?}", run, best_individual);
             info!("Objective: {:?}", self.objective(&best_individual));
             info!("Bin Weights: {:?}", self.bin_weights(&best_individual));
         }
         info!("Best individuals: {:?}", best_individuals);
+        println!("Best individuals: {:?}", best_individuals);
     }
 }
 
@@ -239,9 +236,9 @@ pub fn create_eva_problem(){
         Vec::new(),
         10,
         100,
-        1000,
+        1500,
         0.8,
-        0.2,
+        0.22,
         0.085,
         5
     );
