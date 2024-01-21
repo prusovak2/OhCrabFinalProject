@@ -6,6 +6,7 @@ use crate::robot_veronika::partitioning::PartitioningProblem;
 use crate::robot_veronika::content_pick::collect::CollectTool;
 use crate::robot_veronika::storage::{StorageInfo, Position};
 use robotics_lib::utils::LibError;
+use robotics_lib::event::events::Event::EnergyRecharged;
 use rust_and_furious_dynamo::dynamo::Dynamo;
 use rust_eze_tomtom; //TomTom::get_path_to_coordinates
 use strum::IntoEnumIterator;
@@ -17,12 +18,15 @@ pub struct DistributorRobot{
     desired_content: Vec<usize>,
     /// By default, exploration phase finished will be set to false.
     exploration_finished: bool,
+    /// By default, partitioning solved phase will be set to false.
+    partitioning_solved: bool,
     /// Robot's discovered size of the robot, by default set to 0.
     world_size: usize,
     /// Robot's discovered targets to collect.
     targets: Vec<StorageInfo>,
     //TODO: tests on robots capacity
     markets: Vec<Position>,
+    banks: Vec<Position>,
     visualizer_event_listener: VisualizerEventListener
 }
 
@@ -112,9 +116,6 @@ impl DistributorRobot{
                 let path_up = CollectTool::return_path_to_coordinates(self,
                                                                       world,
                                                                       top_coordinates).unwrap();
-                if self.get_energy().get_energy_level() < 500 {
-                    *self.get_energy_mut()=Dynamo::update_energy();
-                }
 
                 for direction in path_up{
                     let _ = robot_view(self, world);
@@ -137,17 +138,16 @@ impl DistributorRobot{
                 let path_bottom = CollectTool::return_path_to_coordinates(self,
                                                                           world,
                                                                           bottom_coordinates).unwrap();
-                if self.get_energy().get_energy_level() < 500 {
-                    *self.get_energy_mut()=Dynamo::update_energy();
-                }
+                // if self.get_energy().get_energy_level() < 500 {
+                //     *self.get_energy_mut()=Dynamo::update_energy();
+                // }
 
                 for direction in path_bottom{
                     let _ = robot_view(self, world);
                     let _ = VisualizableInterfaces::go(self, world, direction);
-                    let _ = one_direction_view(self, world, Direction::Left, self.world_size)?;
-                    let _ = one_direction_view(self, world, Direction::Right, self.world_size)?;
+                    let left = one_direction_view(self, world, Direction::Left, self.world_size)?;
+                    let right = one_direction_view(self, world, Direction::Right, self.world_size)?;
                 }
-
             }
         }
         else {
@@ -162,7 +162,6 @@ impl DistributorRobot{
             println!("Furthest right coordinates are {:?}", furthest_right_coordinates);
         }
 
-
         let portion_explored = self.get_quantity_explored_world(world);
         if portion_explored > 0.99{
             self.exploration_finished = true;
@@ -170,7 +169,25 @@ impl DistributorRobot{
         println!("Portion explored is {}", portion_explored);
         println!("Targets are {:?}", self.targets);
         println!("Markets are {:?}", self.markets);
+        println!("Banks are {:?}", self.banks);
         Ok(())
+    }
+
+    pub fn solve_packaging_problem(&mut self, world: &mut robotics_lib::world::World){
+        let weights: Vec<u32> = self.extract_storage_into_weights();
+        let evolutionary_algo = PartitioningProblem::new(
+            weights,
+            self.markets.len(),
+            100,
+            1000,
+            0.8,
+            0.22,
+            0.085,
+            5
+        );
+        let best_solution: Vec<usize> = evolutionary_algo.main_exec("logs/market_distribution.log");
+        println!("Best solution is {:?}", best_solution);
+        self.partitioning_solved = true;
     }
 
     pub fn get_quantity_explored_world(&mut self, world: &mut robotics_lib::world::World) -> f32 {
@@ -197,10 +214,12 @@ impl DistributorRobot{
                         self.markets.push(position);
                     }
                 }
-
-                //tile.content.index()
-                //print!("Type {:?},", tile.tile_type);
-                //print!("{:?} ", tile.content);
+                else if tile.content.index() ==Content::Bank(0..0).index(){
+                    let position=Position::new(i, j);
+                    if !self.banks.contains(&position){
+                        self.banks.push(position);
+                    }
+                }
             }
         }
         //println!("Counter finished at : {}", non_none_tiles_counter);
@@ -234,15 +253,18 @@ impl DistributorRobot{
 pub struct DistributorRobotFactory {
     desired_content: Vec<usize>,
     exploration_finished: bool,
+    partitioning_solved: bool,
     world_size: usize,
     targets: Vec<StorageInfo>,
     markets: Vec<Position>,
+    banks: Vec<Position>
 }
 
 impl DistributorRobotFactory {
     pub fn new(desired_content: Vec<usize>) -> DistributorRobotFactory {
-        DistributorRobotFactory{desired_content, exploration_finished: false, world_size: 0,
-        targets: Vec::new(), markets: Vec::new()}
+        DistributorRobotFactory{desired_content, exploration_finished: false,
+            partitioning_solved: false, world_size: 0,
+            targets: Vec::new(), markets: Vec::new(), banks: Vec::new()}
     }
 }
 
@@ -251,9 +273,11 @@ impl RobotCreator for DistributorRobotFactory {
         let distributor_robot = DistributorRobot { robot: Robot::new(), tick_counter: 0,
             desired_content: self.desired_content.clone(),
             exploration_finished: self.exploration_finished,
+            partitioning_solved: self.partitioning_solved,
             world_size: self.world_size,
             targets: self.targets.clone(),
             markets: self.markets.clone(),
+            banks: self.banks.clone(),
             visualizer_event_listener: data_sender };
         Box::new(distributor_robot)
     }
@@ -272,23 +296,26 @@ impl Runnable for DistributorRobot{
         println!("CURRENT SCORE IS {}", get_score(world));
         println!("Robot's position {:?}", self.robot.coordinate);
         if self.exploration_finished == false {
-            self.exploration_phase(world);
+            let _ = self.exploration_phase(world);
         }
-        println!("Got over exploration phase");
-        // if self.get_energy().get_energy_level() < 50 {
-        //     *self.get_energy_mut()=Dynamo::update_energy();
-        //     //*self.get_energy_mut()=Dynamo::update_energy();
-        // }
-
+        else if self.partitioning_solved == false{
+            let _ = self.solve_packaging_problem(world);
+        }
+        else{
+            println!("Nothing to do!");
+        }
+        // packing problem solution phase
     }
     fn handle_event(&mut self, event: robotics_lib::event::events::Event) {
         println_d!("Example robot received event: {}", event);
         // BEWARE - for a visualizer to work it is necessary to call this method from
         // handle_event method of your robot
         self.visualizer_event_listener.handle_event(&event);
-        // if self.get_energy().get_energy_level() < 100 {
-        //     *self.get_energy_mut()=Dynamo::update_energy();
-        // }
+        if self.get_energy().get_energy_level() < 300 {
+            let previous_energy = self.get_energy().get_energy_level();
+            *self.get_energy_mut()=Dynamo::update_energy();
+            self.handle_event(EnergyRecharged(1000-previous_energy));
+        }
     }
 
     fn get_energy(&self) -> &robotics_lib::energy::Energy {

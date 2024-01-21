@@ -10,7 +10,7 @@ pub struct PartitioningProblem{
     /// Vector of weights representing collected items.
     weights: Vec<u32>,
     /// Number of piles, aka markets in our case.
-    piles: u32,
+    piles: usize,
     /// Population size.
     pop_size: usize,
     /// Maximum number of generations.
@@ -28,7 +28,7 @@ pub struct PartitioningProblem{
 impl PartitioningProblem {
     pub fn new(
         weights: Vec<u32>,
-        piles: u32,
+        piles: usize,
         pop_size: usize,
         max_gen: u32,
         cx_prob: f32,
@@ -68,7 +68,7 @@ impl PartitioningProblem {
         let mut rng = rand::thread_rng();
         let mut individual =  Vec::with_capacity(ind_len);
         for _ in 0..ind_len {
-            individual.push(rng.gen_range(0..self.piles) as usize);
+            individual.push(rng.gen_range(0..self.piles));
         }
         individual
     }
@@ -101,7 +101,7 @@ impl PartitioningProblem {
     fn bin_weights(&self, bins_individual: &Vec<usize>)-> Vec<u32> {
         // weights of given bins, aka markets in our case
         //TODO: This could be potentially better initialized
-        let mut bin_weights = Vec::with_capacity(self.piles as usize);
+        let mut bin_weights = Vec::with_capacity(self.piles);
         for _ in 0..self.piles {
             bin_weights.push(0);
         }
@@ -142,7 +142,7 @@ impl PartitioningProblem {
         let mut rng = &mut rand::thread_rng();
         for value in individual.iter_mut() {
             if rng.gen::<f32>() < self.mut_flip_prob {
-                *value = rng.gen_range(0..self.piles) as usize;
+                *value = rng.gen_range(0..self.piles);
             }
         }
     }
