@@ -42,9 +42,42 @@ impl PartialEq for Position {
 pub struct StorageInfo{
     position: Position,
     // Content is potentially not needed
-    content: Content,
-    quantity: u32,
+    content: usize,
+    quantity: usize,
     coefficient: u32
+}
+
+impl StorageInfo{
+    pub fn new(position: Position, content: usize, quantity: usize) -> Self {
+        let coefficient = match(content){
+            // coefficients based on the logic from robotic_lib
+            0 => 1,
+            1 => 2,
+            10 => 5,
+            _ => 0
+        };
+        StorageInfo{
+            position,
+            content,
+            quantity,
+            coefficient}
+    }
+
+    pub fn get_position(&self) -> Position {
+        self.position.clone()
+    }
+
+    pub fn get_content(&self) -> usize {
+        self.content
+    }
+
+    pub fn get_quantity(&self) -> usize {
+        self.quantity
+    }
+
+    pub fn get_coefficient(&self) -> u32 {
+        self.coefficient
+    }
 }
 
 impl Eq for StorageInfo {}
