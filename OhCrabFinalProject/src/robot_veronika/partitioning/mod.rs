@@ -8,14 +8,24 @@ use log::LevelFilter;
 use std::io::Read;
 use itertools::Itertools;
 
+
+/// Structure representing partitioning problem solution via evolutionary algorithm.
 pub struct PartitioningProblem{
+    /// Vector of weights representing collected items.
     weights: Vec<u32>,
+    /// Number of piles, aka markets in our case.
     piles: u32,
+    /// Population size.
     pop_size: usize,
+    /// Maximum number of generations.
     max_gen: u32,
+    /// Crossover probability.
     cx_prob: f32,
+    /// Mutation probability.
     mut_prob: f32,
+    /// Mutation of a bit in individual.
     mut_flip_prob: f32,
+    /// Number of repeats.
     repeats: u32
 }
 
@@ -79,8 +89,8 @@ impl PartitioningProblem {
         let bin_weights : Vec<u32> = self.bin_weights(individual);
         let max_bin_weight : u32 = *bin_weights.iter().max().unwrap();
         let min_bin_weight : u32= *bin_weights.iter().min().unwrap();
-        //let fitness : f32= 1.0/((max_bin_weight as f32 - min_bin_weight as f32).powf(2.0));
-        let fitness : f32= 1.0/((max_bin_weight - min_bin_weight + 1) as f32);
+        let fitness : f32= 1.0/((max_bin_weight as f32 - min_bin_weight as f32).powf(2.0));
+        //let fitness : f32= 1.0/((max_bin_weight - min_bin_weight + 1) as f32);
         let objective : u32 = max_bin_weight - min_bin_weight;
         (fitness, objective)
     }
@@ -94,7 +104,7 @@ impl PartitioningProblem {
 
     fn bin_weights(&self, bins_individual: &Vec<usize>)-> Vec<u32> {
         // weights of given bins, aka markets in our case
-        //TODO: This could be potentially beter inicialized
+        //TODO: This could be potentially better initialized
         let mut bin_weights = Vec::with_capacity(self.piles as usize);
         for _ in 0..self.piles {
             bin_weights.push(0);
@@ -109,7 +119,6 @@ impl PartitioningProblem {
         let mut rng = &mut rand::thread_rng();
         let mut selected: Vec<Vec<usize>> = Vec::with_capacity(self.pop_size);
         for _ in 0..self.pop_size{
-            //let v: Vec<_> = (0..population.len()).collect::<Vec<_>>().choose_multiple(&mut rng, 2).cloned().collect();
             let v: Vec<_>= rand::seq::index::sample(&mut rng, population.len(), 2).into_vec();
             if fitness[v[0]] > fitness[v[1]] {
                 selected.push(population[v[0]].clone());
@@ -142,7 +151,7 @@ impl PartitioningProblem {
         }
     }
 
-    pub fn crossover(&self, population: &mut Vec<Vec<usize>>) -> Vec<Vec<usize>> {
+    fn crossover(&self, population: &mut Vec<Vec<usize>>) -> Vec<Vec<usize>> {
         let mut rng = &mut rand::thread_rng();
         let pop1: Vec<_> = population.iter().cloned().step_by(2).collect();
         let pop2: Vec<_> = population.iter().cloned().skip(1).step_by(2).collect();
@@ -163,7 +172,7 @@ impl PartitioningProblem {
         offsprings
     }
 
-    pub fn mutate(&self, population: &mut Vec<Vec<usize>>) {
+    fn mutate(&self, population: &mut Vec<Vec<usize>>) {
         let mut rng = &mut rand::thread_rng();
         //let mut new_population = Vec::new();
         for individual in population.iter_mut() {
@@ -173,14 +182,14 @@ impl PartitioningProblem {
         }
     }
 
-    pub fn mate(&self, population: &mut Vec<Vec<usize>>) -> Vec<Vec<usize>>{
+    fn mate(&self, population: &mut Vec<Vec<usize>>) -> Vec<Vec<usize>>{
         // crossover and mutation are operators we want to apply on the population
         let mut new_population = self.crossover(population);
         self.mutate(&mut new_population);
         new_population
     }
 
-    pub fn run(&self, population: &mut Vec<Vec<usize>>) -> Vec<Vec<usize>>{
+    pub fn evolutionary_algo_run(&self, population: &mut Vec<Vec<usize>>) -> Vec<Vec<usize>>{
         for generation in 0..self.max_gen{
             let mut fitness: Vec<f32> = Vec::with_capacity(population.len());
             let mut objective: Vec<u32> = Vec::with_capacity(population.len());
@@ -202,14 +211,14 @@ impl PartitioningProblem {
         population.to_vec()
     }
 
-    pub fn main_exec(&self){
+    pub fn main_exec(&self, log_path: &str) -> Vec<usize>{
         let mut best_individuals = Vec::new();
         for run in 0..self.repeats {
             if run == 0{
-                let _ = simple_logging::log_to_file("evolutionary_algo.log", LevelFilter::Info);
+                let _ = simple_logging::log_to_file(log_path, LevelFilter::Info);
             }
             let mut population : Vec<Vec<usize>>= self.create_population(self.weights.len());
-            population = self.run(&mut population);
+            population = self.evolutionary_algo_run(&mut population);
             let mut fitness: Vec<f32> = Vec::with_capacity(population.len());
             let mut objective: Vec<u32> = Vec::with_capacity(population.len());
             for individual in population.iter() {
@@ -219,15 +228,17 @@ impl PartitioningProblem {
             }
             let best_individual = population[fitness.iter().position_max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()].clone();
             best_individuals.push(best_individual.clone());
-            println!("Run: {}, best individual: {:?}", run, best_individual);
-            println!("Objective: {:?}", self.objective(&best_individual));
+            println!("Run: {}", run);
+            println!("Objective best individual: {:?}", self.objective(&best_individual));
             println!("Bin Weights: {:?}", self.bin_weights(&best_individual));
-            info!("Run: {}, best individual: {:?}", run, best_individual);
-            info!("Objective: {:?}", self.objective(&best_individual));
+            info!("Run: {}:", run);
+            info!("Objective best individual: {:?}", self.objective(&best_individual));
             info!("Bin Weights: {:?}", self.bin_weights(&best_individual));
         }
-        info!("Best individuals: {:?}", best_individuals);
-        println!("Best individuals: {:?}", best_individuals);
+        let best_individual = best_individuals[best_individuals.iter().position_min_by(|a, b| self.objective(a).cmp(&self.objective(b))).unwrap() as usize].clone();
+        println!("Best individual: {:?}", best_individual);
+        println!("Best individual objective: {:?}", self.objective(&best_individual));
+        return best_individual;
     }
 }
 
@@ -240,9 +251,9 @@ pub fn create_eva_problem(){
         0.8,
         0.22,
         0.085,
-        5
+        10
     );
     problem.set_weights_from_file("test_data/partition.txt");
     println!("Weights successfully loaded");
-    problem.main_exec();
+    let best_solution: Vec<usize> = problem.main_exec("evolutionary_algo.log");
 }
