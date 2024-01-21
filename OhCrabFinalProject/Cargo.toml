@@ -15,8 +15,9 @@ oxagworldgenerator = { version = "0.1.2",  registry = "kellnr"}
 rizzler_rust_and_furious = { version = "0.1.5", registry = "kellnr"}
 rstykrab_cache = { version ="0.1.0", registry = "kellnr"}
 rust_eze_tomtom = { version = "1.0.0", registry = "kellnr"}
+rust_and_furious_dynamo = { version = "0.1.2", registry = "kellnr"}
 
-OhCrab_collection =  { version ="0.1.0", registry = "kellnr"}
+ohcrab_collection =  { version ="0.1.2", registry = "kellnr"}
 
 egui = "0.24.1"
 egui_extras = {version = "0.24.1", features = ["all_loaders"] }

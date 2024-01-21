@@ -1,9 +1,5 @@
 use rand::Rng;
-use rand::prelude::IteratorRandom;
-use rand::prelude::SliceRandom;
-use rand::prelude::ThreadRng;
-use rand::prelude::StdRng;
-use log::{info, warn};
+use log::{info};
 use log::LevelFilter;
 use std::io::Read;
 use itertools::Itertools;
@@ -200,12 +196,12 @@ impl PartitioningProblem {
             }
             if generation % 100 == 0 {
                 info!("Generation: {}, min objective: {:?}", generation, objective.iter().min().unwrap());
-                let best_individual = population[fitness.iter().position_max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()].clone();
-                let best_objective = self.objective(&best_individual);
+                //let best_individual = population[fitness.iter().position_max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()].clone();
+                //let best_objective = self.objective(&best_individual);
                 //println!("Objective of the best individual in generation {}, is {}", generation, best_objective);
             }
             let mut mating_pool = self.tournament_selection(population, &fitness);
-            let mut new_population : Vec<Vec<usize>> = self.mate(&mut mating_pool);
+            let new_population : Vec<Vec<usize>> = self.mate(&mut mating_pool);
             *population = new_population;
         }
         population.to_vec()
@@ -237,6 +233,7 @@ impl PartitioningProblem {
         }
         let best_individual = best_individuals[best_individuals.iter().position_min_by(|a, b| self.objective(a).cmp(&self.objective(b))).unwrap() as usize].clone();
         println!("Best individual: {:?}", best_individual);
+        info!("Best individual: {:?}", best_individual);
         println!("Best individual objective: {:?}", self.objective(&best_individual));
         return best_individual;
     }
@@ -255,5 +252,5 @@ pub fn create_eva_problem(){
     );
     problem.set_weights_from_file("test_data/partition.txt");
     println!("Weights successfully loaded");
-    let best_solution: Vec<usize> = problem.main_exec("evolutionary_algo.log");
+    let best_solution: Vec<usize> = problem.main_exec("logs/evolutionary_algo_test.log");
 }

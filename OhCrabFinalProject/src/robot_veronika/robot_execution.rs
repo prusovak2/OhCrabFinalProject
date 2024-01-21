@@ -3,7 +3,7 @@ use crate::oh_crab_visualizer::visualizer::visualizer::{OhCrabVisualizerConfig, 
 use robotics_lib::world::tile::Content;
 
 pub fn run_distribution_robot(){
-    let robot_factory = DistributorRobotFactory::new(vec![Content::Rock(1), Content::Fish(1), Content::Tree(2)]);
+    let robot_factory = DistributorRobotFactory::new(vec![Content::Rock(1), Content::Fish(1), Content::Tree(1)]);
     let world_generator = crate::world_gen_utils::load_or_generate_world(20, 420);
 
     let config = OhCrabVisualizerConfig::new(RunMode::Interactive, false, 500);

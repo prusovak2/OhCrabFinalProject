@@ -1,4 +1,4 @@
-use OhCrab_collection::collection::CollectTool;
+use ohcrab_collection::collection::CollectTool;
 use robotics_lib::{runner::{Robot, Runnable}, interface::Direction, world::tile::Content};
 
 use crate::{oh_crab_visualizer::visualizer::{visualizable_interfaces::VisualizableInterfaces, visualizable_robot::{RobotCreator, Visulizable}, visualizer_event_listener::VisualizerEventListener}, println_d};
