@@ -132,7 +132,6 @@ pub(super) fn draw_time(gui_ctx: &mut GuiContext, visualizatio_state: &Visualiza
     egui::Window::new("Time")
         .default_pos((visualizatio_state.grid_canvas_properties.grid_canvas_origin_x + visualizatio_state.grid_canvas_properties.grid_canvas_width + 215.0, 110.0))
         .show(&gui_ctx, |ui| {
-            //ui.label(format!("{}:{}", world_time.hours, world_time.minutes));
             ui.horizontal(|ui| {
                 let (first, second) = get_digits(world_time.hours);
                 let image = egui_images.digit_images.get(&first).unwrap();
@@ -174,12 +173,11 @@ fn get_digits(number: u8) -> (u8, u8) {
 }
 
 pub(super) fn draw_energy_bar(ctx: &egui::Context, visualizatio_state: &VisualizationState, robot_energy: usize, energy_difference: i32, egui_images: &EguiImages) {
-    let energy_percentage = robot_energy as f32 / MAX_ENERGY_LEVEL as f32; // MAX_ENERGY is the maximum energy value
+    let energy_percentage = robot_energy as f32 / MAX_ENERGY_LEVEL as f32;
 
     egui::Window::new("Robot energy")
         .default_pos((visualizatio_state.grid_canvas_properties.grid_canvas_origin_x + visualizatio_state.grid_canvas_properties.grid_canvas_width + 40.0, 15.0))
         .collapsible(false)
-        //.default_width(500.0)
         .show(ctx, |ui| {
             let energy_bar = egui::ProgressBar::new(energy_percentage)
             .fill(egui::Color32::from_rgb(255, 51, 0))
@@ -199,7 +197,6 @@ pub(super) fn draw_energy_bar(ctx: &egui::Context, visualizatio_state: &Visualiz
 pub(super) fn draw_rizler_message(ctx: &egui::Context, visualizatio_state: &VisualizationState, riz_message: &Option<String>) {
     egui::Window::new("Rizzler")
         .default_pos((visualizatio_state.grid_canvas_properties.grid_canvas_origin_x + visualizatio_state.grid_canvas_properties.grid_canvas_width +  280.0, 500.0))
-        //.min_width(500.0)
         .collapsible(false)
         .show(ctx, |ui| {
             ui.strong("Robot say: ");
