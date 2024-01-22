@@ -266,7 +266,8 @@ fn cache_action_to_visualization<'a>(action: &Action, images: &EguiImages<'a>) -
         Action::RobotMap() => (format!("Robot map"), None),
         Action::RobotView() => (format!("Robot view"), None),
         Action::Teleport((x,y)) => (format!("Teleport ({},{})", x, y), None),
-        Action::WhereAmI() => (format!("Where am I"), None)
+        Action::WhereAmI() => (format!("Where am I"), None),
+        Action::Other(_) => ("".to_owned(), None)
     }        
 }
 
