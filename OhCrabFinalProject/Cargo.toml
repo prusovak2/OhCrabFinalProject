@@ -14,15 +14,20 @@ oxagaudiotool = { version = "0.2.0", registry = "kellnr" }
 oxagworldgenerator = { version = "0.1.2",  registry = "kellnr"}
 rizzler_rust_and_furious = { version = "0.1.5", registry = "kellnr"}
 rstykrab_cache = { version ="0.1.0", registry = "kellnr"}
+rust_eze_tomtom = { version = "1.0.4", registry = "kellnr"}
+rust_and_furious_dynamo = { version = "0.1.2", registry = "kellnr"}
 
-OhCrab_collection =  { version ="0.1.0", registry = "kellnr"}
+ohcrab_collection =  { version ="0.1.2", registry = "kellnr"}
 
 egui = "0.24.1"
 egui_extras = {version = "0.24.1", features = ["all_loaders"] }
-image = { version = "0.24", features = ["jpeg", "png"] } 
+image = { version = "0.24", features = ["jpeg", "png"] }
+itertools = "0.12.0"
+log = "0.4.20"
 ggegui = { git = "https://github.com/NemuiSen/ggegui.git", branch = "master" }
 ggez = "0.9.1"
-itertools = "0.12.0"
+simple-logging = "2.0.2"
+
 
 rand = "0.8"
 strum = "0.25.0"
