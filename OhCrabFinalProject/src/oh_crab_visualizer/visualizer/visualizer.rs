@@ -13,7 +13,7 @@ use crate::{oh_crab_visualizer::visualizer::{draw_utils::{self, GridCanvasProper
 
 use super::{visualizable_robot::{VisualizableRobot, RobotCreator, InitStateChannelItem}, Coord, visualizer_event_listener::{VisualizerEventListener, ChannelItem, InterfaceInvocation}, egui_utils::EguiImages, draw_utils::GgezImages};
 
-pub(super) const TILE_SIZE_MIN:f32 = 5.0;
+//pub(super) const TILE_SIZE_MIN:f32 = 5.0;
 pub(super) const TILE_SIZE_MAX:f32 = 120.8;
 pub(super) const CONTENT_TILE_SIZE_LIMIT:f32 = 50.0;
 
@@ -378,7 +378,7 @@ impl OhCrabVisualizer {
                 let (scroll_limit_x, scroll_limit_y) = self.visualization_state.get_scroll_limit(world_map.len());
                 ui.add(egui::Slider::new(&mut self.visualization_state.offset_x, 0.0..=scroll_limit_x));
                 ui.add(egui::Slider::new(&mut self.visualization_state.offset_y, scroll_limit_y..=0.0).orientation(egui::SliderOrientation::Vertical));
-                ui.add(egui::Slider::new(&mut self.visualization_state.grid_canvas_properties.tile_size, TILE_SIZE_MIN..=TILE_SIZE_MAX));
+                ui.add(egui::Slider::new(&mut self.visualization_state.grid_canvas_properties.tile_size, self.visualization_state.grid_canvas_properties.tile_size_min..=TILE_SIZE_MAX));
                 ui.add(egui::Checkbox::new(&mut self.visualization_state.should_focus_on_robot, "Focus on robot"));
             }
             if ui.add(egui::Button::new("Center on robot")).clicked() {

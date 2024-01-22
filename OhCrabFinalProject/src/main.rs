@@ -1,11 +1,12 @@
 use std::env;
 
-use visualizer::oh_crab_visualizer::examples::example::{visualizer_nonteractive, visualizer_interactive};
+use visualizer::oh_crab_visualizer::examples::example::{visualizer_nonteractive, visualizer_interactive, visualizer_smaller};
 
 #[derive(Debug)]
 enum RunMode {
     VisualizerInteractive,
     VisualizerSimulate,
+    VisualizerSmaller,
     Veronika,
     Tanya,
 }
@@ -15,6 +16,7 @@ impl RunMode {
         match s.to_lowercase().as_str() {
             "visualizer-interactive" => Some(RunMode::VisualizerInteractive),
             "visualizer-simulate" => Some(RunMode::VisualizerSimulate),
+            "visualizer-smaller" => Some(RunMode::VisualizerSmaller),
             "veronika" => Some(RunMode::Veronika),
             "tanya" => Some(RunMode::Tanya),
             _ => None,
@@ -37,6 +39,9 @@ fn main() {
         }
         Some(RunMode::VisualizerSimulate) => {
             visualizer_nonteractive();
+        }
+        Some(RunMode::VisualizerSmaller) => {
+            visualizer_smaller();
         }
         Some(RunMode::Veronika) => {
             println!("Run your example here.")
