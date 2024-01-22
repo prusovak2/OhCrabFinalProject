@@ -9,8 +9,6 @@ use robotics_lib::runner::Runnable;
 use robotics_lib::utils::{LibError};
 use robotics_lib::world::tile::{Content, Tile};
 use robotics_lib::world::World;
-use crate::oh_crab_visualizer::visualizer::visualizable_interfaces::VisualizableInterfaces;
-use crate::oh_crab_visualizer::visualizer::visualizable_robot::Visulizable;
 
 #[derive(Debug)]
 pub enum LibErrorExtended {
@@ -230,7 +228,7 @@ impl CollectTool {
         if !Self::check_content_destroyable(search_content) {
             return Err(LibErrorExtended::CommonError(LibError::CannotDestroy));
         }
-        let robot_position = robot.get_coordinate();
+        let _robot_position = robot.get_coordinate();
         //println!("ROBOT POSITION: {:?}", robot_position);
         // count the amout of content we have collected
         let mut content_counter: usize = 0;
@@ -353,7 +351,7 @@ impl CollectTool {
             // println!("Robots position {:?}", robot_position);
             // println!("Dx {:?}, Dy {:?}", dx, dy);
             if robot_search.is_within_bounds(robot_position.x as isize + dx as isize, robot_position.y as isize + dy as isize) {
-                let tile = robot_search.known_world[(robot_position.x as i8 + dx) as usize][(robot_position.y as i8 + dy) as usize].clone();
+                let tile = robot_search.known_world[(robot_position.x as i32 + dx) as usize][(robot_position.y as i32 + dy) as usize].clone();
                 if tile.clone().unwrap().tile_type.properties().walk(){
                     let tile = tile.clone().unwrap();
                     let robots_state = State::new(robot_position, tile.tile_type, tile.content.index(), tile.content.get_value().0.unwrap_or_default());
@@ -423,6 +421,7 @@ impl CollectTool {
         return content_props.destroy();
     }
 
+    #[allow(dead_code)]
     fn print_nicer_world_map(world_map: &Vec<Vec<Tile>>) {
         for row in world_map {
             for col in row {
@@ -434,6 +433,7 @@ impl CollectTool {
         }
     }
 
+    #[allow(dead_code)]
     fn print_nicer_known_world_map(known_world: &Vec<Vec<Option<Tile>>>) {
         for row in known_world {
             for col in row {

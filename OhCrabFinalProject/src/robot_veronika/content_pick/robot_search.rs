@@ -39,20 +39,20 @@ impl<'a> RobotSearch<'a> {
         let mut new_position = state.position;
         match action {
             DirectionWalk::Up { dx, dy } => {
-                new_position.x = (state.position.x as i8 + dx) as usize;
-                new_position.y = (state.position.y as i8 + dy) as usize;
+                new_position.x = (state.position.x as i32 + dx) as usize;
+                new_position.y = (state.position.y as i32 + dy) as usize;
             }
             DirectionWalk::Down { dx, dy } => {
-                new_position.x = (state.position.x as i8 + dx) as usize;
-                new_position.y = (state.position.y as i8 + dy) as usize;
+                new_position.x = (state.position.x as i32 + dx) as usize;
+                new_position.y = (state.position.y as i32 + dy) as usize;
             }
             DirectionWalk::Left { dx, dy } => {
-                new_position.x = (state.position.x as i8 + dx) as usize;
-                new_position.y = (state.position.y as i8 + dy) as usize;
+                new_position.x = (state.position.x as i32 + dx) as usize;
+                new_position.y = (state.position.y as i32 + dy) as usize;
             }
             DirectionWalk::Right { dx, dy } => {
-                new_position.x = (state.position.x as i8 + dx) as usize;
-                new_position.y = (state.position.y as i8 + dy) as usize;
+                new_position.x = (state.position.x as i32 + dx) as usize;
+                new_position.y = (state.position.y as i32 + dy) as usize;
             }
         }
         Some(new_position)
@@ -167,8 +167,8 @@ impl<'a> HeuristicProblem for RobotSearch<'a> {
         let mut distance = 0;
         let robot_position = self.robot_position;
         let state_position = state.position;
-        distance += (robot_position.x as i8 - state_position.x as i8).abs() as usize;
-        distance += (robot_position.y as i8 - state_position.y as i8).abs() as usize;
+        distance += (robot_position.x as i32 - state_position.x as i32).abs() as usize;
+        distance += (robot_position.y as i32 - state_position.y as i32).abs() as usize;
         return distance;
     }
 }

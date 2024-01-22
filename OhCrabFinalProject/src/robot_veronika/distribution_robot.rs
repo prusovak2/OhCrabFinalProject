@@ -1,17 +1,15 @@
 use robotics_lib::{runner::{Robot, Runnable}, world::tile::{Content, Tile}};
-use robotics_lib::interface::{destroy, go, robot_map, robot_view, Direction, look_at_sky, get_score,
-                              one_direction_view};
+use robotics_lib::interface::{Direction};
 use crate::{oh_crab_visualizer::visualizer::{visualizable_interfaces::VisualizableInterfaces, visualizable_robot::{RobotCreator, Visulizable}, visualizer_event_listener::VisualizerEventListener}, println_d};
 use crate::robot_veronika::partitioning::PartitioningProblem;
 use crate::robot_veronika::content_pick::collect::{CollectTool, LibErrorExtended};
 use crate::robot_veronika::storage::{StorageInfo, Position};
-use crate::robot_veronika::content_pick::a_star_search::DirectionWalk;
 use robotics_lib::utils::LibError;
 use robotics_lib::event::events::Event::EnergyRecharged;
 use rust_and_furious_dynamo::dynamo::Dynamo;
 use rust_eze_tomtom; //TomTom::get_path_to_coordinates
 use strum::IntoEnumIterator;
-use std::collections::{BinaryHeap,VecDeque};
+use std::collections::{BinaryHeap};
 
 
 pub struct DistributorRobot{
@@ -51,7 +49,7 @@ impl DistributorRobot{
         for i in 0..furthest_top_coordinates.len() {
             let coordinate_robot: (usize, usize) = (self.get_coordinate().get_row(), self.get_coordinate().get_col());
             let coordinate_test: (usize, usize) = (coordinate_robot.0  - (view_output.len()), coordinate_robot.1 - i);
-            println!("Got before rust eze");
+            println!("Testing coordinates {:?}, UP", coordinate_test);
             //let path = rust_eze_tomtom::TomTom::get_path_to_coordinates(self, world, false, coordinate_test);
             let path = CollectTool::return_path_to_coordinates(self, world, coordinate_test);
             println!("Got over path");
@@ -72,6 +70,7 @@ impl DistributorRobot{
         for i in 0..furthest_bottom_coordinates.len() {
             let coordinate_robot: (usize, usize) = (self.get_coordinate().get_row(), self.get_coordinate().get_col());
             let coordinate_test: (usize, usize) = (coordinate_robot.0  + (view_output.len()), coordinate_robot.1 - i);
+            println!("Testing coordinates {:?}, DOWN", coordinate_test);
             //let path = rust_eze_tomtom::TomTom::get_path_to_coordinates(self, world, false, coordinate_test);
             let path = CollectTool::return_path_to_coordinates(self, world, coordinate_test);
             if path.is_ok(){
@@ -96,7 +95,7 @@ impl DistributorRobot{
             if up_path_len > bottom_path_len{
                 let path_to_bottom = CollectTool::return_path_to_coordinates(self,
                                                                              world,
-                                                                             bottom_coordinates).unwrap();
+                                                                             bottom_coordinates).unwrap_or(vec![]);
                 for direction in path_to_bottom {
                     let _ = VisualizableInterfaces::robot_view(self, world);
                     let _ = VisualizableInterfaces::go(self, world, direction);
@@ -106,7 +105,7 @@ impl DistributorRobot{
 
                 let path_up = CollectTool::return_path_to_coordinates(self,
                                                                       world,
-                                                                      top_coordinates).unwrap();
+                                                                      top_coordinates).unwrap_or(vec![]);
 
                 for direction in path_up{
                     let _ = VisualizableInterfaces::robot_view(self, world);
@@ -118,7 +117,7 @@ impl DistributorRobot{
             else{
                 let path_to_top = CollectTool::return_path_to_coordinates(self,
                                                                           world,
-                                                                          top_coordinates).unwrap();
+                                                                          top_coordinates).unwrap_or(vec![]);
                 for direction in path_to_top {
                     let _ = VisualizableInterfaces::robot_view(self, world);
                     let _ = VisualizableInterfaces::go(self, world, direction);
@@ -128,13 +127,13 @@ impl DistributorRobot{
 
                 let path_bottom = CollectTool::return_path_to_coordinates(self,
                                                                           world,
-                                                                          bottom_coordinates).unwrap();
+                                                                          bottom_coordinates).unwrap_or(vec![]);
 
                 for direction in path_bottom{
                     let _ = VisualizableInterfaces::robot_view(self, world);
                     let _ = VisualizableInterfaces::go(self, world, direction);
-                    let left = VisualizableInterfaces::one_direction_view(self, world, Direction::Left, self.world_size)?;
-                    let right = VisualizableInterfaces::one_direction_view(self, world, Direction::Right, self.world_size)?;
+                    let _ = VisualizableInterfaces::one_direction_view(self, world, Direction::Left, self.world_size)?;
+                    let _ = VisualizableInterfaces::one_direction_view(self, world, Direction::Right, self.world_size)?;
                 }
             }
         }
@@ -146,6 +145,8 @@ impl DistributorRobot{
                 let second_index = &view_output[i].len() - 1;
                 let coordinate_robot: (usize, usize) = (self.get_coordinate().get_row(), self.get_coordinate().get_col());
                 let coordinate_test: (usize, usize) = (coordinate_robot.0  - i, coordinate_robot.1 - (second_index));
+                println!("Testing coordinates {:?}, LEFT", coordinate_test);
+                println!("Robot's position {:?}", coordinate_robot);
                 //let path = rust_eze_tomtom::TomTom::get_path_to_coordinates(self, world, false, coordinate_test);
                 let path = CollectTool::return_path_to_coordinates(self, world, coordinate_test);
                 if path.is_ok(){
@@ -164,6 +165,7 @@ impl DistributorRobot{
                 let second_index = &view_output[i].len() - 1;
                 let coordinate_robot: (usize, usize) = (self.get_coordinate().get_row(), self.get_coordinate().get_col());
                 let coordinate_test: (usize, usize) = (coordinate_robot.0  - i, coordinate_robot.1 + (second_index));
+                println!("Testing coordinates {:?}, RIGHT", coordinate_test);
                 //let path = rust_eze_tomtom::TomTom::get_path_to_coordinates(self, world, false, coordinate_test);
                 let path = CollectTool::return_path_to_coordinates(self, world, coordinate_test);
                 if path.is_ok(){
@@ -181,7 +183,7 @@ impl DistributorRobot{
                 if left_path_len < right_path_len{
                     let path_to_left = CollectTool::return_path_to_coordinates(self,
                                                                                  world,
-                                                                                 left_coordinates).unwrap();
+                                                                                 left_coordinates).unwrap_or(vec![]);
                     for direction in path_to_left {
                         let _ = VisualizableInterfaces::robot_view(self, world);
                         let _ = VisualizableInterfaces::go(self, world, direction);
@@ -191,7 +193,7 @@ impl DistributorRobot{
 
                     let path_right = CollectTool::return_path_to_coordinates(self,
                                                                           world,
-                                                                          right_coordinates).unwrap();
+                                                                          right_coordinates).unwrap_or(vec![]);
 
                     for direction in path_right{
                         let _ = VisualizableInterfaces::robot_view(self, world);
@@ -204,7 +206,7 @@ impl DistributorRobot{
                 else{
                     let path_to_right = CollectTool::return_path_to_coordinates(self,
                                                                                 world,
-                                                                                right_coordinates).unwrap();
+                                                                                right_coordinates).unwrap_or(vec![]);
                     for direction in path_to_right{
                         let _ = VisualizableInterfaces::robot_view(self, world);
                         let _ = VisualizableInterfaces::go(self, world, direction);
@@ -213,7 +215,7 @@ impl DistributorRobot{
                     }
                     let path_to_left = CollectTool::return_path_to_coordinates(self,
                                                                                world,
-                                                                               left_coordinates).unwrap();
+                                                                               left_coordinates).unwrap_or(vec![]);
                     for direction in path_to_left {
                         let _ = VisualizableInterfaces::robot_view(self, world);
                         let _ = VisualizableInterfaces::go(self, world, direction);
@@ -233,7 +235,7 @@ impl DistributorRobot{
         Err(LibError::OutOfBounds)
     }
 
-    pub fn solve_packaging_problem(&mut self, world: &mut robotics_lib::world::World){
+    pub fn solve_packaging_problem(&mut self){
         let weights: Vec<u32> = self.extract_storage_into_weights();
         let evolutionary_algo = PartitioningProblem::new(
             weights,
@@ -294,7 +296,7 @@ impl DistributorRobot{
                 _ => Content::None
             };
             // put stuff into market
-            let _ = VisualizableInterfaces::put(self, world, content, target.get_quantity(), last_step.unwrap());
+            let _ = VisualizableInterfaces::put(self, world, content, target.get_quantity(), last_step.unwrap_or(Direction::Up));
 
             // now we should put money to the bank
 
@@ -315,7 +317,7 @@ impl DistributorRobot{
                 None => 0
             };
 
-            let _ = VisualizableInterfaces::put(self, world, coins, quantity, last_step.unwrap());
+            let _ = VisualizableInterfaces::put(self, world, coins, quantity, last_step.unwrap_or(Direction::Up));
             break;
         }
         return Ok(());
@@ -359,6 +361,8 @@ impl DistributorRobot{
         }
         return (non_none_tiles_counter as f32) / (number_of_tiles as f32);
     }
+
+    #[allow(dead_code)]
     fn print_nicer_known_world_map(&self, known_world: &Vec<Vec<Option<Tile>>>) {
         for row in known_world {
             for col in row {
@@ -443,7 +447,7 @@ impl Runnable for DistributorRobot{
     fn process_tick(&mut self, world: &mut robotics_lib::world::World) {
         self.tick_counter+=1;
         println!("CURRENT TICK is {}", self.tick_counter);
-        println!("CURRENT SCORE IS {}", get_score(world));
+        println!("CURRENT SCORE IS {}", VisualizableInterfaces::get_score(self, world));
         println!("Robot's position {:?}", self.robot.coordinate);
 
         ////// EXPLORATION PHASE
@@ -451,12 +455,14 @@ impl Runnable for DistributorRobot{
             let exploration_output = self.exploration_phase(world);
             if exploration_output.is_err(){
                 println!("Exploration didn't go well, I choose random direction");
-                let cheapest_around = CollectTool::get_cheapest_walkable_around(self, world, &Content::None).unwrap_or((DirectionWalk::Up{dx: -1, dy: 0}, 0));
-                let direction = match cheapest_around.0 {
-                    DirectionWalk::Up {dx, dy} => Direction::Down,
-                    DirectionWalk::Down {dx, dy} => Direction::Up,
-                    DirectionWalk::Left {dx, dy} => Direction::Right,
-                    DirectionWalk::Right {dx, dy} => Direction::Left,
+                // rand index generation
+                let random_index = rand::random::<usize>() % Direction::iter().len();
+                println!("Random index is {}", random_index);
+                let direction = match random_index {
+                    0 => Direction::Down,
+                    1 => Direction::Up,
+                    2 => Direction::Right,
+                    3 => Direction::Left,
                     _ => Direction::Up
                 };
                 let _ = VisualizableInterfaces::go(self, world, direction);
@@ -469,12 +475,15 @@ impl Runnable for DistributorRobot{
             }
             else{
                 println!("I am solving partitioning problem with an evolutionary algorithm!");
-                let _ = self.solve_packaging_problem(world);
+                let _ = self.solve_packaging_problem();
             }
         }
         ////// DELIVERY PHASE
         else{
-                self.deliver_content(world);
+                let output = self.deliver_content(world);
+                if output.is_err(){
+                    println!("Something went wrong with distribution");
+                }
         }
 
         // check if there are no more targets

@@ -21,10 +21,10 @@ impl Position {
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum DirectionWalk {
-    Up { dx: i8, dy: i8 },
-    Down { dx: i8, dy: i8 },
-    Left { dx: i8, dy: i8 },
-    Right { dx: i8, dy: i8 },
+    Up { dx: i32, dy: i32 },
+    Down { dx: i32, dy: i32 },
+    Left { dx: i32, dy: i32 },
+    Right { dx: i32, dy: i32 },
 }
 
 #[derive(Debug, Clone, Copy, Hash)]
@@ -131,10 +131,12 @@ impl Path {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn get_path(&self) -> Vec<Node> {
         self.path.clone()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn print_path(&self) {
         for node in self.path.iter() {
             println!("{:?}", node.action);
@@ -163,6 +165,7 @@ pub(crate) trait HeuristicProblem {
     fn estimate(&self, state: &State) -> usize;
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub(crate) struct Solution {
     pub(crate) actions: Vec<Option<DirectionWalk>>,
@@ -179,6 +182,7 @@ impl Solution {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn get_action(&self) -> Option<DirectionWalk> {
         self.actions[0]
     }

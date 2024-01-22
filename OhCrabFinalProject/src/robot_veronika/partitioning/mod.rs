@@ -127,7 +127,7 @@ impl PartitioningProblem {
     }
 
     fn one_point_crossover(&self, parent1: &Vec<usize>, parent2: &Vec<usize>) -> (Vec<usize>, Vec<usize>) {
-        let mut rng = &mut rand::thread_rng();
+        let rng = &mut rand::thread_rng();
         let crossover_point = rng.gen_range(0..parent1.len());
         let mut child1 = parent1.clone();
         let mut child2 = parent2.clone();
@@ -139,7 +139,7 @@ impl PartitioningProblem {
     }
 
     fn flip_mutate(&self, individual: &mut Vec<usize>){
-        let mut rng = &mut rand::thread_rng();
+        let rng = &mut rand::thread_rng();
         for value in individual.iter_mut() {
             if rng.gen::<f32>() < self.mut_flip_prob {
                 *value = rng.gen_range(0..self.piles);
@@ -148,7 +148,7 @@ impl PartitioningProblem {
     }
 
     fn crossover(&self, population: &mut Vec<Vec<usize>>) -> Vec<Vec<usize>> {
-        let mut rng = &mut rand::thread_rng();
+        let rng = &mut rand::thread_rng();
         let pop1: Vec<_> = population.iter().cloned().step_by(2).collect();
         let pop2: Vec<_> = population.iter().cloned().skip(1).step_by(2).collect();
         let mut offsprings = Vec::new();
@@ -169,7 +169,7 @@ impl PartitioningProblem {
     }
 
     fn mutate(&self, population: &mut Vec<Vec<usize>>) {
-        let mut rng = &mut rand::thread_rng();
+        let rng = &mut rand::thread_rng();
         //let mut new_population = Vec::new();
         for individual in population.iter_mut() {
             if rng.gen::<f32>() < self.mut_prob {
@@ -246,5 +246,5 @@ pub fn create_eva_problem(){
     );
     problem.set_weights_from_file("test_data/partition.txt");
     println!("Weights successfully loaded");
-    let best_solution: Vec<usize> = problem.main_exec("logs/evolutionary_algo_test.log");
+    let _best_solution: Vec<usize> = problem.main_exec("logs/evolutionary_algo_test.log");
 }

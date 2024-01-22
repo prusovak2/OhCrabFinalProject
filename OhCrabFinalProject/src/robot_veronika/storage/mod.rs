@@ -1,5 +1,4 @@
 use std::fmt;
-use robotics_lib::world::tile::Content;
 use std::cmp::Ordering;
 
 #[derive(Debug, Clone)]
