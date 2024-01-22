@@ -1,4 +1,4 @@
-use std::{sync::mpsc::{Receiver, self}, collections::HashMap};
+use std::{sync::mpsc::{Receiver, self}, collections::HashMap, default};
 
 use egui::{Visuals, Context};
 use egui_extras::install_image_loaders;
@@ -11,11 +11,11 @@ use rstykrab_cache::Cache;
 
 use crate::{oh_crab_visualizer::visualizer::{draw_utils::{self, GridCanvasProperties}, visualizer_debug, egui_utils}, println_d};
 
-use super::{visualizable_robot::{VisualizableRobot, RobotCreator, InitStateChannelItem}, Coord, visualizer_event_listener::{VisualizerEventListener, ChannelItem, InterfaceInvocation}, egui_utils::EguiImages};
+use super::{visualizable_robot::{VisualizableRobot, RobotCreator, InitStateChannelItem}, Coord, visualizer_event_listener::{VisualizerEventListener, ChannelItem, InterfaceInvocation}, egui_utils::EguiImages, draw_utils::GgezImages};
 
 pub(super) const TILE_SIZE_MIN:f32 = 5.0;
 pub(super) const TILE_SIZE_MAX:f32 = 120.8;
-pub(super) const CONTENT_TILE_SIZE_LIMIT:f32 = 30.0;
+pub(super) const CONTENT_TILE_SIZE_LIMIT:f32 = 50.0;
 
 pub(super) const DEFAULT_TILE_SIZE:f32 = 60.4;
 pub(super) const GRID_FRAME_WIDTH: f32 = 20.0;
@@ -33,6 +33,7 @@ pub struct OhCrabVisualizer {
     
     gui: Gui,
     egui_images: EguiImages<'static>,
+    ggez_images: GgezImages,
 
     // configuration
     run_mode: RunMode,
@@ -112,8 +113,9 @@ pub(super) struct VisualizationState {
     offset_x: f32,
     offset_y: f32,
     should_focus_on_robot: bool,
+    pub(super) content_display_option: ContentDisplayOptions,
 
-    pub(super)grid_canvas_properties: GridCanvasProperties
+    pub(super) grid_canvas_properties: GridCanvasProperties
 }
 
 impl VisualizationState {
@@ -184,6 +186,13 @@ impl OhCrabVisualizerConfig {
     }
 }
 
+#[derive(PartialEq, Default, Debug)]
+pub(super) enum ContentDisplayOptions { 
+    #[default] Images,
+    Lables,
+    No 
+}
+
 impl OhCrabVisualizer {
     pub fn new(robot_creator: impl RobotCreator, mut world_generator: OxAgWorldGenerator, config: OhCrabVisualizerConfig) -> OhCrabVisualizer {
         let (robot_sender, robot_receiver) = mpsc::channel::<ChannelItem>();
@@ -209,6 +218,7 @@ impl OhCrabVisualizer {
             visualization_state: VisualizationState::default(),
             world_tick_in_progress: false,
             egui_images: EguiImages::init(),
+            ggez_images: GgezImages::empty(),
             rng: rand::thread_rng()
         }
     }
@@ -230,6 +240,7 @@ impl OhCrabVisualizer {
 
     pub fn run(mut self) -> Result<(), OhCrabVisualizerError> {
         let context_builder = ggez::ContextBuilder::new("OhCrabWorld", "OhCrab")
+            .add_resource_path("./assets")
             .window_mode(ggez::conf::WindowMode::default()
             .resizable(true)
             .maximized(true));
@@ -237,6 +248,7 @@ impl OhCrabVisualizer {
         match context_builder.build() {
             Ok((ctx, event_loop)) => {
                 self.gui = Gui::new(&ctx);
+                self.ggez_images = GgezImages::init(&ctx);
                 event::run(ctx, event_loop, self);
             }
             Err(error) => Err(OhCrabVisualizerError::GraphicsLibraryError(error))
@@ -312,9 +324,21 @@ impl OhCrabVisualizer {
     fn focus_on_robot(&mut self) {
         if let Some(robot_pos) = &self.world_state.robot_position{
             println_d!("Focusing on robot on position {:?}", robot_pos);
-            println_d!("rows to display: {} columns to display: {}", self.visualization_state.grid_canvas_properties.num_rows_to_display(), self.visualization_state.grid_canvas_properties.num_columns_to_display() );
-            self.visualization_state.offset_x = f32::max(0.0, robot_pos.x as f32  - (self.visualization_state.grid_canvas_properties.num_columns_to_display() / 2 ) as f32);
-            self.visualization_state.offset_y = f32::max(0.0, robot_pos.y as f32 - (self.visualization_state.grid_canvas_properties.num_rows_to_display() / 2 ) as f32) ;
+            let world_dimension = self.visualization_state.grid_canvas_properties.world_dimension;
+            // x
+            let half_of_columns_to_display = self.visualization_state.grid_canvas_properties.num_columns_to_display() / 2;
+            if robot_pos.x <= (world_dimension - half_of_columns_to_display) && robot_pos.x >= half_of_columns_to_display {
+                self.visualization_state.offset_x = f32::max(0.0, robot_pos.x as f32  - half_of_columns_to_display as f32);
+            }
+            // y
+            let half_of_rows_to_display =  self.visualization_state.grid_canvas_properties.num_rows_to_display() /2 ;
+            if robot_pos.y <= ( world_dimension - half_of_rows_to_display) && robot_pos.y >= half_of_rows_to_display {
+                self.visualization_state.offset_y = f32::max(0.0, robot_pos.y as f32 - half_of_rows_to_display as f32) ;
+                //self.visualization_state.offset_y = f32::max(0.0, robot_pos.y as f32 - (self.visualization_state.grid_canvas_properties.num_rows_to_display() / 2 ) as f32) ;
+            }
+
+            // self.visualization_state.offset_x = f32::max(0.0, robot_pos.x as f32  - (self.visualization_state.grid_canvas_properties.num_columns_to_display() / 2 ) as f32);
+            // self.visualization_state.offset_y = f32::max(0.0, robot_pos.y as f32 - (self.visualization_state.grid_canvas_properties.num_rows_to_display() / 2 ) as f32) ;
             println_d!("Focused");
         }
     }
@@ -351,7 +375,9 @@ impl OhCrabVisualizer {
 
     fn add_control_panel(&mut self, gui_ctx: &mut GuiContext) -> Result<(), OhCrabVisualizerError> {
         let mut res: Result<(), OhCrabVisualizerError> = Ok(());
-        egui::Window::new("Scroll world").show(&gui_ctx, |ui: &mut egui::Ui| {
+        egui::Window::new("Scroll world")
+        .default_pos((5.0, 10.0))
+        .show(&gui_ctx, |ui: &mut egui::Ui| {
             if let Some(world_map) = &self.world_state.world_map {
                 let (scroll_limit_x, scroll_limit_y) = self.visualization_state.get_scroll_limit(world_map.len());
                 ui.add(egui::Slider::new(&mut self.visualization_state.offset_x, 0.0..=scroll_limit_x));
@@ -378,6 +404,13 @@ impl OhCrabVisualizer {
                     }
                 }
             }
+            ui.label("Content: ");
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut self.visualization_state.content_display_option, ContentDisplayOptions::Images, "Images");
+                ui.radio_value(&mut self.visualization_state.content_display_option, ContentDisplayOptions::Lables, "Labels");
+                ui.radio_value(&mut self.visualization_state.content_display_option, ContentDisplayOptions::No, "None"); 
+            });
+              
             // if gui_ctx.input(|i| i.key_pressed(Key::ArrowLeft)) {
             //     println!("Left pressed");
             // }
@@ -576,7 +609,10 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
         if let Some(world_map) = &self.world_state.world_map {
             let mut canvas = graphics::Canvas::from_frame(ctx, graphics::Color::BLACK);
 
-            draw_utils::draw_grid(ctx, &mut canvas, &self.visualization_state, world_map, &self.world_state.robot_position)?;
+            // draw grid
+            draw_utils::draw_grid(ctx, &mut canvas, &self.visualization_state, world_map, &self.world_state.robot_position, &self.ggez_images)?;
+
+            // draw gui
             canvas.draw(&self.gui, DrawParam::default().dest(glam::Vec2::new(400.0, 400.0)));
             
             match canvas.finish(ctx) {
