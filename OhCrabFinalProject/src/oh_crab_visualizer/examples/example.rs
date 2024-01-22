@@ -52,7 +52,7 @@ pub fn distribution_small_viz(){
 
 
     let config = OhCrabVisualizerConfig::new(RunMode::NonInteractive(500), true);
-    let mut visualizer = OhCrabVisualizer::new(robot_factory, world_generator, config);
+    let visualizer = OhCrabVisualizer::new(robot_factory, world_generator, config);
 
     match visualizer.run() {
         Ok(_) => {}
@@ -66,7 +66,7 @@ pub fn distribution_bigger_viz(){
 
 
     let config = OhCrabVisualizerConfig::new(RunMode::NonInteractive(500), false);
-    let mut visualizer = OhCrabVisualizer::new(robot_factory, world_generator, config);
+    let visualizer = OhCrabVisualizer::new(robot_factory, world_generator, config);
 
     match visualizer.run() {
         Ok(_) => {}

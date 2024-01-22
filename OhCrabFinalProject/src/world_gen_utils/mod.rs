@@ -2,7 +2,7 @@ use std::{fs, io::Read};
 use robotics_lib::world::tile::Content;
 use oxagworldgenerator::world_generator::content_options::OxAgContentOptions;
 use oxagworldgenerator::world_generator::tile_type_options::OxAgTileTypeOptions;
-use oxagworldgenerator::world_generator::{OxAgWorldGenerator, world_generator_builder::OxAgWorldGeneratorBuilder, presets::tile_type_presets::OxAgTileTypePresets};
+use oxagworldgenerator::world_generator::{OxAgWorldGenerator, world_generator_builder::OxAgWorldGeneratorBuilder};
 
 fn non_empty_file_exists(filename: &str) -> bool {
     if let Ok(metadata) = fs::metadata(filename) {
