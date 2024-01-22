@@ -49,7 +49,7 @@ impl GgezImages {
     pub(super) fn init(ctx: & Context) -> GgezImages {
         println!("Loading pictures...");
 
-        let robot_image = Image::from_path(&ctx.gfx, "/images/robot/robot_2.png").ok();
+        let robot_image = Image::from_path(&ctx.gfx, "/images/robot/robot_white.png").ok();
 
         let tile_images = GgezImages::load_images::<TileType>(ctx, "/images/tiles/");
 
@@ -256,11 +256,11 @@ fn draw_robot(robot_position: &Coord, ctx: &mut Context, canvas: &mut Canvas, ti
         canvas.draw(robot_image, draw_param);
         Ok(())
     }
-    else{
+    else {
         let circle_radius = tile_size * 0.2;
         let center_x = ((x as f32 + 0.25) * tile_size) + grid_canvas_origin_x;
         let center_y = (y as f32 + 0.25) * tile_size + grid_canvas_origin_y;
-        let res = graphics::Mesh::new_circle(
+        let res_black = graphics::Mesh::new_circle(
             ctx,
             graphics::DrawMode::fill(),
             glam::Vec2::new(center_x, center_y),
@@ -268,7 +268,21 @@ fn draw_robot(robot_position: &Coord, ctx: &mut Context, canvas: &mut Canvas, ti
             0.4,
             Color::BLACK,
         );
-        match res {
+        let res_white = graphics::Mesh::new_circle(
+            ctx,
+            graphics::DrawMode::fill(),
+            glam::Vec2::new(center_x, center_y),
+            tile_size * 0.25,
+            0.4,
+            Color::WHITE,
+        );
+        match res_white {
+            Ok(circle) => {
+                canvas.draw(&circle, graphics::DrawParam::default());
+            }
+            Err(error) => return Err(OhCrabVisualizerError::GraphicsLibraryError(error))
+        }
+        match res_black {
             Ok(circle) => {
                 canvas.draw(&circle, graphics::DrawParam::default());
                 Ok(())
