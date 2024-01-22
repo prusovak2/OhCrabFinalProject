@@ -166,7 +166,7 @@ const MARKET: fn() -> Vec<(Content, OxAgContentOptions)> = || {
                 max_radius: 3,
                 with_max_spawn_number: false,
                 max_spawn_number: 0,
-                percentage: 0.04,
+                percentage: 0.1,
             },
         ),
         (
@@ -178,7 +178,7 @@ const MARKET: fn() -> Vec<(Content, OxAgContentOptions)> = || {
                 max_radius: 3,
                 with_max_spawn_number: false,
                 max_spawn_number: 0,
-                percentage: 0.1,
+                percentage: 0.2,
             },
         ),
         (
@@ -199,10 +199,10 @@ const MARKET: fn() -> Vec<(Content, OxAgContentOptions)> = || {
                 in_batches: true,
                 is_present: true,
                 min_spawn_number: 3,
-                max_radius: 10,
+                max_radius: 4,
                 with_max_spawn_number: false,
                 max_spawn_number: 100,
-                percentage: 0.3,
+                percentage: 0.2,
             },
         ),
     ])};

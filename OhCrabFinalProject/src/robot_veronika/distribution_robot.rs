@@ -51,13 +51,15 @@ impl DistributorRobot{
         for i in 0..furthest_top_coordinates.len() {
             let coordinate_robot: (usize, usize) = (self.get_coordinate().get_row(), self.get_coordinate().get_col());
             let coordinate_test: (usize, usize) = (coordinate_robot.0  - (view_output.len()), coordinate_robot.1 - i);
-            let path = rust_eze_tomtom::TomTom::get_path_to_coordinates(self, world, false, coordinate_test);
-            //let path = CollectTool::return_path_to_coordinates(self, world, coordinate_test);
+            println!("Got before rust eze");
+            //let path = rust_eze_tomtom::TomTom::get_path_to_coordinates(self, world, false, coordinate_test);
+            let path = CollectTool::return_path_to_coordinates(self, world, coordinate_test);
+            println!("Got over path");
             if path.is_ok(){
                 //at this point, we were able to get to the top
                 top_coordinates = Some(coordinate_test);
-                //up_path_len = path.unwrap().len();
-                up_path_len = path.unwrap().actions.len();
+                up_path_len = path.unwrap().len();
+                //up_path_len = path.unwrap().actions.len();
                 break;
             }
         }
@@ -70,11 +72,13 @@ impl DistributorRobot{
         for i in 0..furthest_bottom_coordinates.len() {
             let coordinate_robot: (usize, usize) = (self.get_coordinate().get_row(), self.get_coordinate().get_col());
             let coordinate_test: (usize, usize) = (coordinate_robot.0  + (view_output.len()), coordinate_robot.1 - i);
-            let path = rust_eze_tomtom::TomTom::get_path_to_coordinates(self, world, false, coordinate_test);
+            //let path = rust_eze_tomtom::TomTom::get_path_to_coordinates(self, world, false, coordinate_test);
+            let path = CollectTool::return_path_to_coordinates(self, world, coordinate_test);
             if path.is_ok(){
                 //at this point, we were able to get to the top
                 bottom_coordinates = Some(coordinate_test);
-                bottom_path_len = path.unwrap().actions.len();
+                //bottom_path_len = path.unwrap().actions.len();
+                bottom_path_len = path.unwrap().len();
                 break;
             }
         }
@@ -142,11 +146,13 @@ impl DistributorRobot{
                 let second_index = &view_output[i].len() - 1;
                 let coordinate_robot: (usize, usize) = (self.get_coordinate().get_row(), self.get_coordinate().get_col());
                 let coordinate_test: (usize, usize) = (coordinate_robot.0  - i, coordinate_robot.1 - (second_index));
-                let path = rust_eze_tomtom::TomTom::get_path_to_coordinates(self, world, false, coordinate_test);
+                //let path = rust_eze_tomtom::TomTom::get_path_to_coordinates(self, world, false, coordinate_test);
+                let path = CollectTool::return_path_to_coordinates(self, world, coordinate_test);
                 if path.is_ok(){
                     //at this point, we were able to get to the left
                     left_coordinates = Some(coordinate_test);
-                    left_path_len = path.unwrap().actions.len();
+                    //left_path_len = path.unwrap().actions.len();
+                    left_path_len = path.unwrap().len();
                     break;
                 }
             }
@@ -158,10 +164,12 @@ impl DistributorRobot{
                 let second_index = &view_output[i].len() - 1;
                 let coordinate_robot: (usize, usize) = (self.get_coordinate().get_row(), self.get_coordinate().get_col());
                 let coordinate_test: (usize, usize) = (coordinate_robot.0  - i, coordinate_robot.1 + (second_index));
-                let path = rust_eze_tomtom::TomTom::get_path_to_coordinates(self, world, false, coordinate_test);
+                //let path = rust_eze_tomtom::TomTom::get_path_to_coordinates(self, world, false, coordinate_test);
+                let path = CollectTool::return_path_to_coordinates(self, world, coordinate_test);
                 if path.is_ok(){
                     right_coordinates = Some(coordinate_test);
-                    right_path_len = path.unwrap().actions.len();
+                    //right_path_len = path.unwrap().actions.len();
+                    right_path_len = path.unwrap().len();
                     break;
                 }
             }
@@ -257,8 +265,6 @@ impl DistributorRobot{
             //let market_index: usize = self.markets_indexes.pop_front().unwrap();
             // go to collect the item first
 
-            //TODO: check of the len of the action is not 0, then we should get the cheapest walkable around,
-            // run simulation again and distroy in that given direction
             let mut path_to_target = CollectTool::return_path_to_coordinates(self,
                                                                              world,
                                                                              (target.get_position().get_row(),
@@ -328,6 +334,10 @@ impl DistributorRobot{
                 let tile = col.clone().unwrap();
                 if self.desired_content.contains(&tile.content.index()) {
                     let position = Position::new(i, j);
+                    let value = tile.content.get_value().0.unwrap();
+                    if value < 1 {
+                        continue;
+                    }
                     let storage_info = StorageInfo::new(position,
                                                         tile.content.index(),
                                                         tile.content.get_value().0.unwrap());
@@ -347,7 +357,6 @@ impl DistributorRobot{
                 }
             }
         }
-        //println!("Counter finished at : {}", non_none_tiles_counter);
         return (non_none_tiles_counter as f32) / (number_of_tiles as f32);
     }
     fn print_nicer_known_world_map(&self, known_world: &Vec<Vec<Option<Tile>>>) {
@@ -419,7 +428,6 @@ impl RobotCreator for DistributorRobotFactory {
             targets: self.targets.clone(),
             markets: self.markets.clone(),
             banks: self.banks.clone(),
-            //markets_indexes: self.markets_indexes.clone(),
             visualizer_event_listener: data_sender };
         Box::new(distributor_robot)
     }
@@ -473,7 +481,6 @@ impl Runnable for DistributorRobot{
         if self.targets.len() == 0{
             println!("I am out of targets, everything is delivered.");
         }
-        // packing problem solution phase
     }
 
     fn handle_event(&mut self, event: robotics_lib::event::events::Event) {
