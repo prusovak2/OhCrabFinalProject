@@ -334,7 +334,6 @@ impl OhCrabVisualizer {
             let half_of_rows_to_display =  self.visualization_state.grid_canvas_properties.num_rows_to_display() /2 ;
             if robot_pos.y <= ( world_dimension - half_of_rows_to_display) && robot_pos.y >= half_of_rows_to_display {
                 self.visualization_state.offset_y = f32::max(0.0, robot_pos.y as f32 - half_of_rows_to_display as f32) ;
-                //self.visualization_state.offset_y = f32::max(0.0, robot_pos.y as f32 - (self.visualization_state.grid_canvas_properties.num_rows_to_display() / 2 ) as f32) ;
             }
 
             // self.visualization_state.offset_x = f32::max(0.0, robot_pos.x as f32  - (self.visualization_state.grid_canvas_properties.num_columns_to_display() / 2 ) as f32);
