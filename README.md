@@ -1,6 +1,8 @@
 # OhCrab final project
 ## Visualizer
 
+### User documentation
+
 * you can find the usage example in `src/oh_crab_visualizer/examples`
 
 * in order to be usable with the visualizer, your robot must implement `Visualizable` trait. Trait requires one method `borrow_event_listener` that should just return a reference to `VisualizerEventListener`. Implementation looks as follows. 
@@ -34,17 +36,26 @@
   }
   ```
 
-  * `create` method of `RobotCreator` trait will be be used by the visualizer to create your robot instance.
+  * `create` method of `RobotCreator` trait will be be used by the visualizer to create your robot instance
+
+  * `VisualizerConfig` struct looks as follows:
+
+    ```rust
+    pub struct OhCrabVisualizerConfig {
+        run_mode: RunMode,
+        use_sound: bool,
+    }
+    ```
+
+    * run mode decides whether the visualizer should wait for a user to press a button to simulate tick (`RunMode::Interactive`) or whether it should simulate given number of steps without requiring user input (`RunMode::NonInteractive(num_ticks)`)
 
 * Visualizer instance working with `example_robot` from above can be constructed as follows:
   ```rust
   let robot_factory = ExampleRobotFactory::new(42);
   let world_generator = crate::world_gen_utils::load_or_generate_world(15, 42);
-  let config = OhCrabVisualizerConfig::new(20, false, false, 500);
-  let mut visualizer = OhCrabVisualizer::new(robot_factory, world_generator, config);
+  let config = OhCrabVisualizerConfig::new(RunMode::NonInteractive(400), false);
+  let visualizer = OhCrabVisualizer::new(robot_factory, world_generator, config);
   ```
-
-  * fields of ` OhCrabVisualizerConfig` struct are likely to change a bit in the following days
 
 * Visualizer implements
 
@@ -73,5 +84,17 @@
   cargo run --features visualizer_verbose
   ```
 
-  
+
+### Developer documentation
+
+Visualizer uses following tools obtained on software fair
+
+* `oxag_audio_tool` by `Oxidizing Agents` to make sounds
+* `history-cache` by `Rusty Krab` to display history of robot actions
+* `rizzler` by `Rust and furious` to display messages from robot
+
+Visualizer uses
+
+* `ggez` library to plot tile grid
+* `egui` library to provide interactive gui
 
