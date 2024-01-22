@@ -31,3 +31,16 @@ pub fn visualizer_interactive(){
         Err(err) => println!("Visualizer run returned error {:?}", err),
     } 
 }
+
+pub fn visualizer_smaller(){
+    let robot_factory = ExampleRobotFactory::new(42);
+    let world_generator = crate::world_gen_utils::load_or_generate_world(128, 420);
+
+    let config = OhCrabVisualizerConfig::new(RunMode::Interactive, true);
+    let visualizer = OhCrabVisualizer::new(robot_factory, world_generator, config);
+    
+    match visualizer.run() {
+        Ok(_) => {}
+        Err(err) => println!("Visualizer run returned error {:?}", err),
+    } 
+}

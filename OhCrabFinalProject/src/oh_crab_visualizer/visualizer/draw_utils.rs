@@ -15,7 +15,8 @@ pub(super) struct GridCanvasProperties {
     pub(super) grid_canvas_height: f32,
     pub(super) grid_canvas_origin_x: f32,
     pub(super) grid_canvas_origin_y: f32,
-    pub(super) world_dimension: usize
+    pub(super) world_dimension: usize,
+    pub(super) tile_size_min: f32,
 }
 
 impl GridCanvasProperties {
@@ -28,13 +29,15 @@ impl GridCanvasProperties {
     }
 
     pub(super) fn build(canvas_total_size: f32, world_dimension: usize) -> GridCanvasProperties {
+        let grid_canvas_size = canvas_total_size - 80.0;
         GridCanvasProperties {
             tile_size: visualizer::DEFAULT_TILE_SIZE,
-            grid_canvas_height: canvas_total_size - 80.0,
-            grid_canvas_width: canvas_total_size - 80.0,
+            grid_canvas_height: grid_canvas_size,
+            grid_canvas_width: grid_canvas_size,
             grid_canvas_origin_x: visualizer::GRID_CANVAS_ORIGIN_X,
             grid_canvas_origin_y: visualizer::GRID_CANVAS_ORIGIN_Y,
-            world_dimension
+            world_dimension,
+            tile_size_min: grid_canvas_size / (world_dimension as f32)
         }
     } 
 }
