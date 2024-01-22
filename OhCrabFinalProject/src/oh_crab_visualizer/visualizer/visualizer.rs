@@ -1,15 +1,15 @@
-use std::{sync::mpsc::{Receiver, self}, collections::HashMap, default};
+use std::{sync::mpsc::{Receiver, self}, collections::HashMap};
 
-use egui::{Visuals, Context};
+use egui::Visuals;
 use egui_extras::install_image_loaders;
 use ggegui::{egui::{self}, Gui, GuiContext};
-use ggez::{event::{EventHandler, self}, graphics::{self, Color, DrawParam}, GameError, glam};
+use ggez::{event::{EventHandler, self}, graphics::{self, DrawParam}, GameError, glam};
 use oxagworldgenerator::world_generator::OxAgWorldGenerator;
 use rand::{rngs::ThreadRng, seq::SliceRandom};
 use robotics_lib::{runner::Runner, utils::LibError as RobotError, event::events::Event as RobotEvent, world::{tile::{Tile, Content}, environmental_conditions::{WeatherType, EnvironmentalConditions}}};
 use rstykrab_cache::Cache;
 
-use crate::{oh_crab_visualizer::visualizer::{draw_utils::{self, GridCanvasProperties}, visualizer_debug, egui_utils}, println_d};
+use crate::{oh_crab_visualizer::visualizer::{draw_utils::{self, GridCanvasProperties}, egui_utils}, println_d};
 
 use super::{visualizable_robot::{VisualizableRobot, RobotCreator, InitStateChannelItem}, Coord, visualizer_event_listener::{VisualizerEventListener, ChannelItem, InterfaceInvocation}, egui_utils::EguiImages, draw_utils::GgezImages};
 
@@ -37,7 +37,6 @@ pub struct OhCrabVisualizer {
 
     // configuration
     run_mode: RunMode,
-    delay_in_milis: u64,
 
     // state
     tick_counter: usize,
@@ -173,15 +172,13 @@ pub enum RunMode {
 pub struct OhCrabVisualizerConfig {
     run_mode: RunMode,
     use_sound: bool,
-    delay_in_milis: u64,
 }
 
 impl OhCrabVisualizerConfig {
-    pub fn new(run_mode: RunMode, use_sound: bool, delay_in_milis: u64) -> Self {
+    pub fn new(run_mode: RunMode, use_sound: bool) -> Self {
         OhCrabVisualizerConfig {
             run_mode,
             use_sound,
-            delay_in_milis
         }
     }
 }
@@ -211,7 +208,6 @@ impl OhCrabVisualizer {
             action_cache: Cache::new(50),
             gui: Gui::default(),
             run_mode: config.run_mode,
-            delay_in_milis: config.delay_in_milis,
             tick_counter: 0,
             world_state: WorldState::empty(),
             world_time: WorldTime::default(),
