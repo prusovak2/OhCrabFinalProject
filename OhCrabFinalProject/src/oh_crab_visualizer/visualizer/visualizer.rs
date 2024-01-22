@@ -1,4 +1,4 @@
-use std::{sync::mpsc::{Receiver, self}, collections::HashMap};
+use std::{sync::mpsc::{Receiver, self}, collections::HashMap, default};
 
 use egui::{Visuals, Context};
 use egui_extras::install_image_loaders;
@@ -15,7 +15,7 @@ use super::{visualizable_robot::{VisualizableRobot, RobotCreator, InitStateChann
 
 pub(super) const TILE_SIZE_MIN:f32 = 5.0;
 pub(super) const TILE_SIZE_MAX:f32 = 120.8;
-pub(super) const CONTENT_TILE_SIZE_LIMIT:f32 = 30.0;
+pub(super) const CONTENT_TILE_SIZE_LIMIT:f32 = 50.0;
 
 pub(super) const DEFAULT_TILE_SIZE:f32 = 60.4;
 pub(super) const GRID_FRAME_WIDTH: f32 = 20.0;
@@ -113,8 +113,9 @@ pub(super) struct VisualizationState {
     offset_x: f32,
     offset_y: f32,
     should_focus_on_robot: bool,
+    pub(super) content_display_option: ContentDisplayOptions,
 
-    pub(super)grid_canvas_properties: GridCanvasProperties
+    pub(super) grid_canvas_properties: GridCanvasProperties
 }
 
 impl VisualizationState {
@@ -183,6 +184,13 @@ impl OhCrabVisualizerConfig {
             delay_in_milis
         }
     }
+}
+
+#[derive(PartialEq, Default, Debug)]
+pub(super) enum ContentDisplayOptions { 
+    #[default] Images,
+    Lables,
+    No 
 }
 
 impl OhCrabVisualizer {
@@ -355,7 +363,9 @@ impl OhCrabVisualizer {
 
     fn add_control_panel(&mut self, gui_ctx: &mut GuiContext) -> Result<(), OhCrabVisualizerError> {
         let mut res: Result<(), OhCrabVisualizerError> = Ok(());
-        egui::Window::new("Scroll world").show(&gui_ctx, |ui: &mut egui::Ui| {
+        egui::Window::new("Scroll world")
+        .default_pos((5.0, 10.0))
+        .show(&gui_ctx, |ui: &mut egui::Ui| {
             if let Some(world_map) = &self.world_state.world_map {
                 let (scroll_limit_x, scroll_limit_y) = self.visualization_state.get_scroll_limit(world_map.len());
                 ui.add(egui::Slider::new(&mut self.visualization_state.offset_x, 0.0..=scroll_limit_x));
@@ -382,6 +392,13 @@ impl OhCrabVisualizer {
                     }
                 }
             }
+            ui.label("Content: ");
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut self.visualization_state.content_display_option, ContentDisplayOptions::Images, "Images");
+                ui.radio_value(&mut self.visualization_state.content_display_option, ContentDisplayOptions::Lables, "Labels");
+                ui.radio_value(&mut self.visualization_state.content_display_option, ContentDisplayOptions::No, "None"); 
+            });
+              
             // if gui_ctx.input(|i| i.key_pressed(Key::ArrowLeft)) {
             //     println!("Left pressed");
             // }
@@ -580,7 +597,10 @@ impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
         if let Some(world_map) = &self.world_state.world_map {
             let mut canvas = graphics::Canvas::from_frame(ctx, graphics::Color::BLACK);
 
+            // draw grid
             draw_utils::draw_grid(ctx, &mut canvas, &self.visualization_state, world_map, &self.world_state.robot_position, &self.ggez_images)?;
+
+            // draw gui
             canvas.draw(&self.gui, DrawParam::default().dest(glam::Vec2::new(400.0, 400.0)));
             
             match canvas.finish(ctx) {

@@ -6,7 +6,7 @@ use strum_macros::Display;
 
 use crate::println_d;
 
-use super::{Coord, visualizer::{OhCrabVisualizerError, self, CONTENT_TILE_SIZE_LIMIT, VisualizationState}};
+use super::{Coord, visualizer::{OhCrabVisualizerError, self, CONTENT_TILE_SIZE_LIMIT, VisualizationState, ContentDisplayOptions}};
 
 #[derive(Default)]
 pub(super) struct GridCanvasProperties {
@@ -108,7 +108,7 @@ pub(super) fn draw_grid(
     for y in tile_offset_y..last_row {
         for x in tile_offset_x..last_column {
             let tile: &Tile = &world_map[y][x]; 
-            draw_tile(tile, ctx, canvas, (x-tile_offset_x) as f32, (y-tile_offset_y) as f32,  tile_size, canvas_origin_x, canvas_origin_y, images)?;
+            draw_tile(tile, ctx, canvas, (x-tile_offset_x) as f32, (y-tile_offset_y) as f32,  tile_size, canvas_origin_x, canvas_origin_y, images, &visualization_state.content_display_option)?;
         }
     }
 
@@ -143,7 +143,7 @@ fn draw_grid_frame(ctx: &mut Context, canvas: &mut Canvas, canvas_props: &GridCa
     }
 }
 
-fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: f32, y :f32, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32, images: &GgezImages) -> Result<(), OhCrabVisualizerError> {    
+fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: f32, y :f32, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32, images: &GgezImages, content_options: &ContentDisplayOptions) -> Result<(), OhCrabVisualizerError> {    
     let tile_x = (x * tile_size) + grid_canvas_origin_x;
     let tile_y = (y * tile_size) + grid_canvas_origin_y;
     let tile_rect_color = get_tile_color(&tile.tile_type);
@@ -152,7 +152,7 @@ fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: f32, y :f32
 
     let mut uses_tile_image = false;
     match tile_image {
-        Some(tile_image) =>{
+        Some(tile_image) => {
             uses_tile_image = true;
             let x_scale = 1.0 / (tile_image.width() as f32 / tile_size);
             let y_scale = 1.0 / (tile_image.height() as f32 / tile_size);
@@ -163,7 +163,6 @@ fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: f32, y :f32
             canvas.draw(tile_image, draw_param);
         },
         None => {
-            
             let res = graphics::Mesh::new_rectangle(
                 ctx,
                 graphics::DrawMode::fill(),
@@ -188,13 +187,21 @@ fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: f32, y :f32
     if tile_size >= CONTENT_TILE_SIZE_LIMIT {
         let content_text_color = if uses_tile_image { get_content_text_color_for_tile_image(&tile.tile_type) } else { invert_color(&tile_rect_color) };
         let content_image = images.content_images.get(&content_to_content_type(&tile.content));
-        match content_image {
-            Some(content_image) => {
-                draw_tile_content_image(canvas, &tile.content, content_image, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, content_text_color);
-            }
-            None => {
+        match content_options {
+            ContentDisplayOptions::Images => {
+                match content_image {
+                    Some(content_image) => {
+                        draw_tile_content_image(canvas, &tile.content, content_image, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, content_text_color);
+                    }
+                    None => {
+                        draw_tile_content_text(canvas, &tile.content, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, content_text_color);
+                    }
+                }
+            },
+            ContentDisplayOptions::Lables => {
                 draw_tile_content_text(canvas, &tile.content, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, content_text_color);
-            }
+            },
+            ContentDisplayOptions::No => {},
         }
     }
     Ok(())
@@ -258,7 +265,7 @@ fn draw_robot(robot_position: &Coord, ctx: &mut Context, canvas: &mut Canvas, ti
             graphics::DrawMode::fill(),
             glam::Vec2::new(center_x, center_y),
             circle_radius,
-            0.4, // Segments (adjust based on your needs)
+            0.4,
             Color::BLACK,
         );
         match res {
