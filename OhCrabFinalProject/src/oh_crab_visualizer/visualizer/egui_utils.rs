@@ -84,8 +84,8 @@ impl<'a> EguiImages<'a> {
         }
     }
 
-    fn get_image_for_content(&self, content: &Content) -> Image<'a> {
-        self.content_images.get(content).unwrap().clone()
+    fn get_image_for_content(&self, content: &Content) -> Option<Image<'a>> {
+        self.content_images.get(content).map(|image| image.clone())
     }
 }
 
@@ -255,14 +255,14 @@ pub(super) fn draw_history_cache(gui_ctx: &mut GuiContext, visualizatio_state: &
 
 fn cache_action_to_visualization<'a>(action: &Action, images: &EguiImages<'a>) -> (String, Option<Image<'a>>) {
     match action {
-        Action::Craft(content) => (format!("Craft: {}", content), Some(images.get_image_for_content(content))),
+        Action::Craft(content) => (format!("Craft: {}", content), images.get_image_for_content(content)),
         Action::Destroy(direction) => (format!("Destroy: {}", direction_to_string(direction)), Some(images.get_image_for_direction(direction))),
         Action::DiscoverTiles(tiles) => (format!("Discover tiles: {:?}", tiles), None),
         Action::GetScore() => (format!("Get score"), None),
         Action::Go(direction) => (format!("Go: {:}", direction_to_string(direction)), Some(images.get_image_for_direction(direction))),
         Action::LookAtSky() => (format!("Look at sky"), None),
         Action::OneDirectionView(direction, distance) => (format!("One directional view: {:}, distance {}", direction_to_string(direction), distance), Some(images.get_image_for_direction(direction)) ),
-        Action::Put(content, amount, direction) => (format!("Put {} of {}: {}", amount, content, direction_to_string(direction)), Some(images.get_image_for_content(content))),
+        Action::Put(content, amount, direction) => (format!("Put {} of {}: {}", amount, content, direction_to_string(direction)), images.get_image_for_content(content)),
         Action::RobotMap() => (format!("Robot map"), None),
         Action::RobotView() => (format!("Robot view"), None),
         Action::Teleport((x,y)) => (format!("Teleport ({},{})", x, y), None),

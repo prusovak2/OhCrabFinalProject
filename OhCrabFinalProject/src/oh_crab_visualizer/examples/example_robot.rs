@@ -64,6 +64,11 @@ impl Runnable for ExampleRobot {
             Err(error) => println!("Example robot: put error {:?}", error)
         } 
 
+        match VisualizableInterfaces::put(self, world, Content::Coin(20), 2, Direction::Right) {
+            Ok(_) => {}
+            Err(error) => println!("Example robot: put error {:?}", error)
+        } 
+
         let _: robotics_lib::world::environmental_conditions::EnvironmentalConditions = VisualizableInterfaces::look_at_sky(self, world);
 
         match VisualizableInterfaces::go(self, world, self.get_direction()) {
@@ -74,20 +79,20 @@ impl Runnable for ExampleRobot {
             }
         }
 
-        match CollectTool::collect_instantly_reachable(self, world, &Content::JollyBlock(0)){
-            Ok(_) => {}
-            Err(error) => println!("Example robot: collect error {:?}", error)
-        }
+        // match CollectTool::collect_instantly_reachable(self, world, &Content::JollyBlock(0)){
+        //     Ok(_) => {}
+        //     Err(error) => println!("Example robot: collect error {:?}", error)
+        // }
 
         // match CollectTool::collect_instantly_reachable(self, world, &Content::Fish(1)){
         //     Ok(_) => {}
         //     Err(error) => println!("Example robot: collect error {:?}", error)
         // }
 
-        // match CollectTool::collect_instantly_reachable(self, world, &Content::Coin(1)){
-        //     Ok(_) => {}
-        //     Err(error) => println!("Example robot: collect error {:?}", error)
-        // }
+        match CollectTool::collect_instantly_reachable(self, world, &Content::Coin(5)){
+            Ok(_) => {}
+            Err(error) => println!("Example robot: collect error {:?}", error)
+        }
 
         match CollectTool::collect_instantly_reachable(self, world, &Content::Water(1)){
             Ok(_) => {}
