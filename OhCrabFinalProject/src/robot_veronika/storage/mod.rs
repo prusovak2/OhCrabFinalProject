@@ -1,5 +1,6 @@
 use std::fmt;
 use robotics_lib::world::tile::Content;
+use std::cmp::Ordering;
 
 #[derive(Debug, Clone)]
 pub struct Position {
@@ -35,6 +36,23 @@ impl Eq for Position {}
 impl PartialEq for Position {
     fn eq(&self, other: &Self) -> bool {
         self.row == other.row && self.col == other.col
+    }
+}
+
+impl Ord for Position {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.row.cmp(&other.row) {
+            Ordering::Equal => {
+                self.col.cmp(&other.col)
+            }
+            ordering => ordering,
+        }
+    }
+}
+
+impl PartialOrd for Position {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -85,5 +103,17 @@ impl Eq for StorageInfo {}
 impl PartialEq for StorageInfo {
     fn eq(&self, other: &Self) -> bool {
         self.position == other.position
+    }
+}
+
+impl Ord for StorageInfo {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.position.cmp(&other.position)
+    }
+}
+
+impl PartialOrd for StorageInfo {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }

@@ -10,6 +10,7 @@ use robotics_lib::event::events::Event::EnergyRecharged;
 use rust_and_furious_dynamo::dynamo::Dynamo;
 use rust_eze_tomtom; //TomTom::get_path_to_coordinates
 use strum::IntoEnumIterator;
+use std::collections::{BinaryHeap,VecDeque};
 
 
 pub struct DistributorRobot{
@@ -23,10 +24,12 @@ pub struct DistributorRobot{
     /// Robot's discovered size of the robot, by default set to 0.
     world_size: usize,
     /// Robot's discovered targets to collect.
-    targets: Vec<StorageInfo>,
+    targets: BinaryHeap<StorageInfo>,
     //TODO: tests on robots capacity
     markets: Vec<Position>,
     banks: Vec<Position>,
+    /// Indexes into which markets should the content go
+    markets_indexes: VecDeque<usize>,
     visualizer_event_listener: VisualizerEventListener
 }
 
@@ -188,6 +191,11 @@ impl DistributorRobot{
         let best_solution: Vec<usize> = evolutionary_algo.main_exec("logs/market_distribution.log");
         println!("Best solution is {:?}", best_solution);
         self.partitioning_solved = true;
+        //self.markets_indexes = best_solution;
+        for item in best_solution{
+            self.markets_indexes.push_back(item);
+        }
+
     }
 
     pub fn get_quantity_explored_world(&mut self, world: &mut robotics_lib::world::World) -> f32 {
@@ -243,7 +251,8 @@ impl DistributorRobot{
 
     fn extract_storage_into_weights(&self) -> Vec<u32>{
         let mut weights = Vec::with_capacity(self.targets.len());
-        for target in self.targets.iter() {
+        let mut targets = self.targets.clone();
+        while let Some(target) = targets.pop(){
             weights.push((target.get_quantity() as u32) * target.get_coefficient());
         }
         weights
@@ -255,16 +264,17 @@ pub struct DistributorRobotFactory {
     exploration_finished: bool,
     partitioning_solved: bool,
     world_size: usize,
-    targets: Vec<StorageInfo>,
+    targets: BinaryHeap<StorageInfo>,
     markets: Vec<Position>,
-    banks: Vec<Position>
+    banks: Vec<Position>,
+    markets_indexes: VecDeque<usize>,
 }
 
 impl DistributorRobotFactory {
     pub fn new(desired_content: Vec<usize>) -> DistributorRobotFactory {
         DistributorRobotFactory{desired_content, exploration_finished: false,
             partitioning_solved: false, world_size: 0,
-            targets: Vec::new(), markets: Vec::new(), banks: Vec::new()}
+            targets: BinaryHeap::new(), markets: Vec::new(), banks: Vec::new(), markets_indexes: VecDeque::new()}
     }
 }
 
@@ -278,6 +288,7 @@ impl RobotCreator for DistributorRobotFactory {
             targets: self.targets.clone(),
             markets: self.markets.clone(),
             banks: self.banks.clone(),
+            markets_indexes: self.markets_indexes.clone(),
             visualizer_event_listener: data_sender };
         Box::new(distributor_robot)
     }
@@ -299,10 +310,42 @@ impl Runnable for DistributorRobot{
             let _ = self.exploration_phase(world);
         }
         else if self.partitioning_solved == false{
-            let _ = self.solve_packaging_problem(world);
+            if self.markets.len() < 1 || self.banks.len() < 1{
+                println!("I have nothing to do in the world, banks or markets are missing.")
+            }
+            else{
+                println!("I am solving partitioning problem with an evolutionary algorithm!");
+                let _ = self.solve_packaging_problem(world);
+            }
         }
         else{
-            println!("Nothing to do!");
+            println!("I am distributing the content!");
+            while let Some(target) = self.targets.pop(){
+                // check if robot has still place in the backpak
+                if self.get_backpack().get_size() - self.get_backpack().get_() < target.get_quantity(){
+                    println!("Robot's backpack is full, going to the bank");
+                    let destination: usize = self.markets_indexes.pop_front().unwrap();
+                    let bank_position = self.banks[destination];
+                    let path_to_bank = CollectTool::return_path_to_coordinates(self,
+                                                                                world,
+                                                                                (bank_position.get_row(), bank_position.get_col())).unwrap();
+                    for direction in path_to_bank{
+                        let _ = VisualizableInterfaces::go(self, world, direction)?;
+
+                }
+                let destination: usize = self.markets_indexes.pop_front().unwrap();
+                // go to collect the item first
+                let mut path_to_target = CollectTool::return_path_to_coordinates(self,
+                                                                              world,
+                                                                              target.get_position().get_coordinates()).unwrap();
+                let last_step = path_to_target.pop();
+                for direction in path_to_target{
+                    let _ = VisualizableInterfaces::go(self, world, direction)?;
+                }
+                let _ = VisualizableInterfaces::destroy(self, world, last_step)?;
+            }
+
+
         }
         // packing problem solution phase
     }
