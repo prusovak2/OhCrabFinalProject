@@ -1,7 +1,8 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash, fmt::Debug, env::var};
 
 use ggez::{graphics::{Canvas, Color, self, TextFragment, Image}, Context, glam, mint::{Point2, Vector2}};
 use robotics_lib::world::tile::{Tile, TileType, Content};
+use strum_macros::Display;
 
 use crate::println_d;
 
@@ -47,41 +48,39 @@ pub(super) struct GgezImages {
 impl GgezImages {
     pub(super) fn init(ctx: & Context) -> GgezImages {
         println!("Loading pictures...");
-        let robot_image = Image::from_path(&ctx.gfx, "/images/robot/robot_2.png").ok();
-        let mut tile_images: HashMap<TileType, Image> = HashMap::new();
-        tile_images.insert(TileType::DeepWater, Image::from_path(&ctx.gfx, "/images/tiles/deep_water.png").expect("failed to load tile image"));
-        tile_images.insert(TileType::ShallowWater, Image::from_path(&ctx.gfx, "/images/tiles/shallow_water.png").expect("failed to load tile image"));
-        tile_images.insert(TileType::Sand, Image::from_path(&ctx.gfx, "/images/tiles/sand.png").expect("failed to load tile image"));
-        tile_images.insert(TileType::Grass, Image::from_path(&ctx.gfx, "/images/tiles/grass.png").expect("failed to load tile image"));
-        tile_images.insert(TileType::Street, Image::from_path(&ctx.gfx, "/images/tiles/street.png").expect("failed to load tile image"));
-        tile_images.insert(TileType::Hill, Image::from_path(&ctx.gfx, "/images/tiles/hill.png").expect("failed to load tile image"));
-        tile_images.insert(TileType::Mountain, Image::from_path(&ctx.gfx, "/images/tiles/mountain.png").expect("failed to load tile image"));
-        tile_images.insert(TileType::Snow, Image::from_path(&ctx.gfx, "/images/tiles/snow.png").expect("failed to load tile image"));
-        tile_images.insert(TileType::Lava, Image::from_path(&ctx.gfx, "/images/tiles/lava.png").expect("failed to load tile image"));
-        tile_images.insert(TileType::Teleport(true), Image::from_path(&ctx.gfx, "/images/tiles/teleport.png").expect("failed to load tile image"));
-        tile_images.insert(TileType::Wall, Image::from_path(&ctx.gfx, "/images/tiles/wall.png").expect("failed to load tile image"));
 
-        let mut content_map:HashMap<ContentType, Image> = HashMap::new();
-        content_map.insert(ContentType::Fish, Image::from_path(&ctx.gfx, "/images/content/fish.png").expect("failed to load tile image"));
-        content_map.insert(ContentType::Water, Image::from_path(&ctx.gfx, "/images/content/water.png").expect("failed to load content image"));
-        content_map.insert(ContentType::Rock, Image::from_path(&ctx.gfx, "/images/content/rock.png").expect("failed to load content image"));
-        content_map.insert(ContentType::Tree, Image::from_path(&ctx.gfx, "/images/content/tree.png").expect("failed to load content image"));
-        content_map.insert(ContentType::Garbage, Image::from_path(&ctx.gfx, "/images/content/garbage.png").expect("failed to load content image"));
-        content_map.insert(ContentType::Fire, Image::from_path(&ctx.gfx, "/images/content/fire.png").expect("failed to load content image"));
-        content_map.insert(ContentType::Coin, Image::from_path(&ctx.gfx, "/images/content/coin.png").expect("failed to load content image"));
-        content_map.insert(ContentType::Bin, Image::from_path(&ctx.gfx, "/images/content/bin.png").expect("failed to load content image"));
-        content_map.insert(ContentType::Crate, Image::from_path(&ctx.gfx, "/images/content/crate.png").expect("failed to load content image"));
-        content_map.insert(ContentType::Bank, Image::from_path(&ctx.gfx, "/images/content/bank.png").expect("failed to load content image"));
-        content_map.insert(ContentType::Market, Image::from_path(&ctx.gfx, "/images/content/market.png").expect("failed to load content image"));
-        content_map.insert(ContentType::Building, Image::from_path(&ctx.gfx, "/images/content/building.png").expect("failed to load content image"));
-        content_map.insert(ContentType::Bush, Image::from_path(&ctx.gfx, "/images/content/bush.png").expect("failed to load content image"));
-        content_map.insert(ContentType::JollyBlock, Image::from_path(&ctx.gfx, "/images/content/jollyBlock.png").expect("failed to load content image"));
-        content_map.insert(ContentType::Scarecrow, Image::from_path(&ctx.gfx, "/images/content/scarecrow.png").expect("failed to load content image"));
-        GgezImages { robot_image: robot_image, tile_images: tile_images, content_images: content_map}
+        let robot_image = Image::from_path(&ctx.gfx, "/images/robot/robot_2.png").ok();
+
+        let tile_images = GgezImages::load_images::<TileType>(ctx, "/images/tiles/");
+
+        let content_images = GgezImages::load_images::<ContentType>(ctx, "/images/content/");
+
+        GgezImages { robot_image: robot_image, tile_images: tile_images, content_images: content_images}
     }
 
     pub(super) fn empty() -> GgezImages {
         GgezImages { robot_image: None, tile_images: HashMap::new(), content_images:HashMap::new() }
+    }
+
+    fn load_images<TKey: Hash + PartialEq + Eq + Debug>(ctx: &Context, dir_name: &str) -> HashMap<TKey, Image>{
+        let mut images: HashMap<TKey, Image> = HashMap::new();
+        let variants = all_enum_variants::<TKey>();
+        for variant in variants {
+            GgezImages::try_insert(ctx, &mut images, dir_name, variant);
+        }
+        images
+    }
+
+    fn try_insert<TKey: Hash + PartialEq + Eq + Debug>(ctx: &Context, map: &mut HashMap<TKey, Image>, dir_name: &str, key: TKey) {
+        let striped_key_name = remove_content_between_parentheses(&format!("{:?}", key));
+        println_d!("Loading Image: {}", format!("{}{}.png", dir_name, striped_key_name));
+        let image_option = Image::from_path(&ctx.gfx, format!("{}{}.png", dir_name, striped_key_name));
+        match image_option {
+            Ok(image) => {
+                map.insert(key, image);
+            },
+            Err(_) => {println!("Failed to load image {}{}", dir_name, striped_key_name)},
+        }
     }
 }
 
@@ -370,7 +369,7 @@ fn is_close_to_gray(color: &Color) -> bool {
         && (color.b - average).abs() <= GRAY_TRESHOLD
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Display, Debug)]
 enum ContentType {
     Rock,
     Tree,
@@ -409,4 +408,37 @@ fn content_to_content_type(content: &Content) -> ContentType {
         Content::Scarecrow => ContentType::Scarecrow,
         Content::None => ContentType::None,
     }
+}
+
+fn all_enum_variants<T: std::fmt::Debug>() -> Vec<T> {
+    use std::mem;
+    let mut variants = Vec::new();
+    let mut index = 0;
+    loop {
+        let variant = unsafe { mem::transmute_copy(&index) };
+        if let Some(variant) = variant {
+            variants.push(variant);
+            index += 1;
+        } else {
+            break;
+        }
+    }
+    variants
+}
+
+fn remove_content_between_parentheses(input: &str) -> String {
+    let mut result = String::new();
+    let mut in_parentheses = false;
+    for c in input.chars() {
+        match c {
+            '(' => in_parentheses = true,
+            ')' => in_parentheses = false,
+            _ => {
+                if !in_parentheses {
+                    result.push(c);
+                }
+            }
+        }
+    }
+    result
 }
