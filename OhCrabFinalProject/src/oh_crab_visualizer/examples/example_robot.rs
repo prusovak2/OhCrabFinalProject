@@ -62,16 +62,12 @@ impl Runnable for ExampleRobot {
         match VisualizableInterfaces::put(self, world, Content::Water(0), 2, Direction::Right) {
             Ok(_) => {}
             Err(error) => println!("Example robot: put error {:?}", error)
-        }
+        } 
 
-        let env_cond = VisualizableInterfaces::look_at_sky(self, world);
-
-        // let time = env_cond.get_time_of_day();
-
-        // println!("EXAMPLE ROBOT: time : {}, weather: {:?}", env_cond.get_time_of_day_string(), env_cond.get_weather_condition());
+        let _: robotics_lib::world::environmental_conditions::EnvironmentalConditions = VisualizableInterfaces::look_at_sky(self, world);
 
         match VisualizableInterfaces::go(self, world, self.get_direction()) {
-            Ok((_, (y, x))) => { println_d!("Example robot: new position {:?}", (x,y));}
+            Ok((_, (_, _))) => { }
             Err(_) => {
                 self.change_direction();
                 println!("Example robot: changing direction: {:?}", self.get_direction())
@@ -93,12 +89,10 @@ impl Runnable for ExampleRobot {
         //     Err(error) => println!("Example robot: collect error {:?}", error)
         // }
 
-        // match CollectTool::collect_instantly_reachable(self, world, &Content::Water(1)){
-        //     Ok(_) => {}
-        //     Err(error) => println!("Example robot: collect error {:?}", error)
-        // }
-
-        
+        match CollectTool::collect_instantly_reachable(self, world, &Content::Water(1)){
+            Ok(_) => {}
+            Err(error) => println!("Example robot: collect error {:?}", error)
+        }
 
         // match CollectTool::collect_content(self, world, &Content::Water(0), 42, 40){
         //     Ok(_) => {}

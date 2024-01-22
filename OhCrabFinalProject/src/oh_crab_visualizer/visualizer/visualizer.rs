@@ -1,15 +1,15 @@
-use std::{sync::mpsc::{Receiver, self}, collections::HashMap, default};
+use std::{sync::mpsc::{Receiver, self}, collections::HashMap};
 
-use egui::{Visuals, Context};
+use egui::Visuals;
 use egui_extras::install_image_loaders;
 use ggegui::{egui::{self}, Gui, GuiContext};
-use ggez::{event::{EventHandler, self}, graphics::{self, Color, DrawParam}, GameError, glam};
+use ggez::{event::{EventHandler, self}, graphics::{self, DrawParam}, GameError, glam};
 use oxagworldgenerator::world_generator::OxAgWorldGenerator;
 use rand::{rngs::ThreadRng, seq::SliceRandom};
 use robotics_lib::{runner::Runner, utils::LibError as RobotError, event::events::Event as RobotEvent, world::{tile::{Tile, Content}, environmental_conditions::{WeatherType, EnvironmentalConditions}}};
 use rstykrab_cache::Cache;
 
-use crate::{oh_crab_visualizer::visualizer::{draw_utils::{self, GridCanvasProperties}, visualizer_debug, egui_utils}, println_d};
+use crate::{oh_crab_visualizer::visualizer::{draw_utils::{self, GridCanvasProperties}, egui_utils}, println_d};
 
 use super::{visualizable_robot::{VisualizableRobot, RobotCreator, InitStateChannelItem}, Coord, visualizer_event_listener::{VisualizerEventListener, ChannelItem, InterfaceInvocation}, egui_utils::EguiImages, draw_utils::GgezImages};
 
@@ -37,7 +37,6 @@ pub struct OhCrabVisualizer {
 
     // configuration
     run_mode: RunMode,
-    delay_in_milis: u64,
 
     // state
     tick_counter: usize,
@@ -47,6 +46,8 @@ pub struct OhCrabVisualizer {
     visualization_state: VisualizationState
 }
 
+/// Represents state of robotic lib world as it is known to visualizer
+/// 
 struct WorldState {
     world_map: Option<Vec<Vec<Tile>>>,
     robot_position: Option<Coord>,
@@ -108,13 +109,14 @@ impl WorldTime {
     }
 }
 
+/// Represents state given by visualizer gui settings
+/// 
 #[derive(Default)]
 pub(super) struct VisualizationState {
     offset_x: f32,
     offset_y: f32,
     should_focus_on_robot: bool,
     pub(super) content_display_option: ContentDisplayOptions,
-
     pub(super) grid_canvas_properties: GridCanvasProperties
 }
 
@@ -173,15 +175,13 @@ pub enum RunMode {
 pub struct OhCrabVisualizerConfig {
     run_mode: RunMode,
     use_sound: bool,
-    delay_in_milis: u64,
 }
 
 impl OhCrabVisualizerConfig {
-    pub fn new(run_mode: RunMode, use_sound: bool, delay_in_milis: u64) -> Self {
+    pub fn new(run_mode: RunMode, use_sound: bool) -> Self {
         OhCrabVisualizerConfig {
             run_mode,
             use_sound,
-            delay_in_milis
         }
     }
 }
@@ -211,7 +211,6 @@ impl OhCrabVisualizer {
             action_cache: Cache::new(50),
             gui: Gui::default(),
             run_mode: config.run_mode,
-            delay_in_milis: config.delay_in_milis,
             tick_counter: 0,
             world_state: WorldState::empty(),
             world_time: WorldTime::default(),
@@ -327,17 +326,15 @@ impl OhCrabVisualizer {
             let world_dimension = self.visualization_state.grid_canvas_properties.world_dimension;
             // x
             let half_of_columns_to_display = self.visualization_state.grid_canvas_properties.num_columns_to_display() / 2;
-            if robot_pos.x <= (world_dimension - half_of_columns_to_display) && robot_pos.x >= half_of_columns_to_display {
+            if robot_pos.x <= (world_dimension - half_of_columns_to_display) && robot_pos.x >= half_of_columns_to_display { // prevent moving camera when robot is close to edge 
                 self.visualization_state.offset_x = f32::max(0.0, robot_pos.x as f32  - half_of_columns_to_display as f32);
             }
             // y
             let half_of_rows_to_display =  self.visualization_state.grid_canvas_properties.num_rows_to_display() /2 ;
-            if robot_pos.y <= ( world_dimension - half_of_rows_to_display) && robot_pos.y >= half_of_rows_to_display {
+            if robot_pos.y <= ( world_dimension - half_of_rows_to_display) && robot_pos.y >= half_of_rows_to_display { // prevent moving camera when robot is close to edge 
                 self.visualization_state.offset_y = f32::max(0.0, robot_pos.y as f32 - half_of_rows_to_display as f32) ;
             }
 
-            // self.visualization_state.offset_x = f32::max(0.0, robot_pos.x as f32  - (self.visualization_state.grid_canvas_properties.num_columns_to_display() / 2 ) as f32);
-            // self.visualization_state.offset_y = f32::max(0.0, robot_pos.y as f32 - (self.visualization_state.grid_canvas_properties.num_rows_to_display() / 2 ) as f32) ;
             println_d!("Focused");
         }
     }
@@ -409,17 +406,6 @@ impl OhCrabVisualizer {
                 ui.radio_value(&mut self.visualization_state.content_display_option, ContentDisplayOptions::Lables, "Labels");
                 ui.radio_value(&mut self.visualization_state.content_display_option, ContentDisplayOptions::No, "None"); 
             });
-              
-            // if gui_ctx.input(|i| i.key_pressed(Key::ArrowLeft)) {
-            //     println!("Left pressed");
-            // }
-            // if gui_ctx.input(|i| i.key_down(Key::ArrowLeft)) {
-            //     println!("Left is down");
-            //     //ui.ctx().request_repaint(); // make sure we note the holding.
-            // }
-            // if gui_ctx.input(|i| i.key_released(Key::ArrowLeft)) {
-            //     println!("Left is released");
-            // }
         });
 
         if res.is_err() {
@@ -520,13 +506,10 @@ impl OhCrabVisualizer {
     }
 
     fn process_robotic_lib_event(&mut self) -> Result<(), OhCrabVisualizerError> {
-                //println_d!("VISUALIZER UPDATE, receiving from robot channel.");
                 let received_state = self.robot_receiver.try_recv();
 
                 match received_state {
                     Ok(channel_item) => {
-                        //println_d!("VISUALIZER UPDATE, received item {:?}.", channel_item);
-                        //timer::sleep(std::time::Duration::from_millis(self.delay_in_milis)); // TODO: why is this sleep there and not somewhere else?
                         match  channel_item {
                             ChannelItem::EventChannelItem(event) => {
                                 match event {
@@ -567,7 +550,6 @@ impl OhCrabVisualizer {
                         }
                     }
                     Err(std::sync::mpsc::TryRecvError::Empty) => {
-                        //println_d!("VISUALIZER: channel empty, execution another world tick.");
                         self.world_tick_in_progress = false;
                         if !self.is_interactive() {
                             self.do_world_tick()?;
@@ -584,7 +566,6 @@ impl OhCrabVisualizer {
 
 impl EventHandler<OhCrabVisualizerError> for OhCrabVisualizer {
     fn update(&mut self, ctx: &mut ggez::Context) -> Result<(), OhCrabVisualizerError> {
-        //println_d!("VISUALIZER UPDATE, TICK COUNT: {}", self.tick_counter);
         if self.tick_counter == 0 {
             let (x, y) = ctx.gfx.size();
             let size = f32::min(x, y);

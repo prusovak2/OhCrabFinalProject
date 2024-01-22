@@ -8,8 +8,8 @@ pub fn example(){
     //let world_generator = crate::world_gen_utils::load_or_generate_world(15, 42);
 
     //let config = OhCrabVisualizerConfig::new(RunMode::Interactive, true, 500);
-    let config = OhCrabVisualizerConfig::new(RunMode::NonInteractive(400), false, 500);
-    let mut visualizer = OhCrabVisualizer::new(robot_factory, world_generator, config);
+    let config = OhCrabVisualizerConfig::new(RunMode::NonInteractive(400), false);
+    let visualizer = OhCrabVisualizer::new(robot_factory, world_generator, config);
     
     //visualizer.simulate().unwrap();
     match visualizer.run() {
