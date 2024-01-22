@@ -192,10 +192,70 @@ impl DistributorRobot{
         println!("Best solution is {:?}", best_solution);
         self.partitioning_solved = true;
         //self.markets_indexes = best_solution;
+
+        //let targets = self.targets.clone();
+
         for item in best_solution{
             self.markets_indexes.push_back(item);
         }
+    }
 
+    pub fn deliver_content(&mut self, world: &mut robotics_lib::world::World) {
+        while let Some(target) = self.targets.pop() {
+            println!("I am distributing the content!");
+            let market_index: usize = self.markets_indexes.pop_front().unwrap();
+            // go to collect the item first
+            let mut path_to_target = CollectTool::return_path_to_coordinates(self,
+                                                                             world,
+                                                                             (target.get_position().get_row(),
+                                                                              target.get_position().get_col())).unwrap();
+            let last_step = path_to_target.pop();
+            for direction in path_to_target {
+                let _ = VisualizableInterfaces::go(self, world, direction);
+            }
+            let _ = VisualizableInterfaces::destroy(self, world, last_step.unwrap());
+            let maker_position = &self.markets[market_index];
+            let mut path_to_market = CollectTool::return_path_to_coordinates(self,
+                                                                             world,
+                                                                             (maker_position.get_row(),
+                                                                              maker_position.get_col())).unwrap();
+            let last_step = path_to_market.pop();
+            for direction in path_to_market {
+                let _ = VisualizableInterfaces::go(self, world, direction);
+            }
+
+            let content = match (target.get_content()) {
+                0 => Content::Rock(0),
+                1 => Content::Tree(0),
+                4 => Content::Coin(0),
+                10 => Content::Fish(0),
+                11 => Content::Market(0),
+                _ => Content::None
+            };
+
+            let _ = VisualizableInterfaces::put(self, world, content, target.get_quantity(), last_step.unwrap());
+            // now we should put money to the bank
+
+            // find the closes bank
+            let closest_bank = self.get_closest_bank();
+            let mut path_to_bank = CollectTool::return_path_to_coordinates(self,
+                                                                           world,
+                                                                           (closest_bank.get_row(),
+                                                                            closest_bank.get_col())).unwrap();
+            let last_step = path_to_bank.pop();
+            for direction in path_to_bank {
+                let _ = VisualizableInterfaces::go(self, world, direction);
+            }
+
+            let coins = Content::Coin(0);
+            let quantity: usize = match self.get_backpack().get_contents().get(&coins) {
+                Some(quantity) => *quantity,
+                None => 0
+            };
+
+            let _ = VisualizableInterfaces::put(self, world, coins, quantity, last_step.unwrap());
+            break;
+        }
     }
 
     pub fn get_quantity_explored_world(&mut self, world: &mut robotics_lib::world::World) -> f32 {
@@ -256,6 +316,20 @@ impl DistributorRobot{
             weights.push((target.get_quantity() as u32) * target.get_coefficient());
         }
         weights
+    }
+
+    fn get_closest_bank(&self) -> Position{
+        let mut closest_bank: Option<Position> = None;
+        let mut closest_distance: i32 = 100000;
+        for bank in &self.banks{
+            let distance = (bank.get_row() as i32 - self.get_coordinate().get_row() as i32).abs() +
+                (bank.get_col() as i32 - self.get_coordinate().get_col() as i32).abs();
+            if distance < closest_distance{
+                closest_distance = distance;
+                closest_bank = Some(bank.clone());
+            }
+        }
+        closest_bank.unwrap()
     }
 }
 
@@ -319,33 +393,10 @@ impl Runnable for DistributorRobot{
             }
         }
         else{
-            println!("I am distributing the content!");
-            while let Some(target) = self.targets.pop(){
-                // check if robot has still place in the backpak
-                if self.get_backpack().get_size() - self.get_backpack().get_() < target.get_quantity(){
-                    println!("Robot's backpack is full, going to the bank");
-                    let destination: usize = self.markets_indexes.pop_front().unwrap();
-                    let bank_position = self.banks[destination];
-                    let path_to_bank = CollectTool::return_path_to_coordinates(self,
-                                                                                world,
-                                                                                (bank_position.get_row(), bank_position.get_col())).unwrap();
-                    for direction in path_to_bank{
-                        let _ = VisualizableInterfaces::go(self, world, direction)?;
-
-                }
-                let destination: usize = self.markets_indexes.pop_front().unwrap();
-                // go to collect the item first
-                let mut path_to_target = CollectTool::return_path_to_coordinates(self,
-                                                                              world,
-                                                                              target.get_position().get_coordinates()).unwrap();
-                let last_step = path_to_target.pop();
-                for direction in path_to_target{
-                    let _ = VisualizableInterfaces::go(self, world, direction)?;
-                }
-                let _ = VisualizableInterfaces::destroy(self, world, last_step)?;
+                self.deliver_content(world);
             }
-
-
+        if self.targets.len() == 0{
+            println!("I am out of targets, everything is delivered.");
         }
         // packing problem solution phase
     }

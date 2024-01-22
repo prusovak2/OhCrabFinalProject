@@ -59,10 +59,10 @@ impl PartialOrd for Position {
 #[derive(Debug, Clone)]
 pub struct StorageInfo{
     position: Position,
-    // Content is potentially not needed
     content: usize,
     quantity: usize,
-    coefficient: u32
+    coefficient: u32,
+    market_index: usize,
 }
 
 impl StorageInfo{
@@ -78,7 +78,8 @@ impl StorageInfo{
             position,
             content,
             quantity,
-            coefficient}
+            coefficient,
+            market_index: 0}
     }
 
     pub fn get_position(&self) -> Position {
@@ -95,6 +96,14 @@ impl StorageInfo{
 
     pub fn get_coefficient(&self) -> u32 {
         self.coefficient
+    }
+
+    pub fn get_market_index_mut(&mut self) -> &mut usize {
+        &mut self.market_index
+    }
+
+    pub fn set_market_index(&mut self, market_index: usize) {
+        self.market_index = market_index;
     }
 }
 
