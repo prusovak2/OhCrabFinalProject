@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash, fmt::Debug, env::var};
+use std::{collections::HashMap, hash::Hash, fmt::Debug};
 
 use ggez::{graphics::{Canvas, Color, self, TextFragment, Image}, Context, glam, mint::{Point2, Vector2}};
 use robotics_lib::world::tile::{Tile, TileType, Content};
@@ -102,14 +102,9 @@ pub(super) fn draw_grid(
     let canvas_origin_x = visualization_state.grid_canvas_properties.grid_canvas_origin_x;
     let canvas_origin_y = visualization_state.grid_canvas_properties.grid_canvas_origin_y;
 
-    // let rows_to_display = canvas_props.num_rows_to_display();
-    // let columns_to_display = canvas_props.num_columns_to_display();
-
-    // let last_column = usize::min(world_dimension, tile_offset.x + (columns_to_display as usize));
-    // let last_row = usize::min(world_dimension, tile_offset.y + (rows_to_display as usize));
-
     draw_grid_frame(ctx, canvas, &visualization_state.grid_canvas_properties)?;
 
+    // tile grid
     for y in tile_offset_y..last_row {
         for x in tile_offset_x..last_column {
             let tile: &Tile = &world_map[y][x]; 
@@ -151,74 +146,83 @@ fn draw_grid_frame(ctx: &mut Context, canvas: &mut Canvas, canvas_props: &GridCa
 fn draw_tile(tile: &Tile, ctx: &mut Context, canvas: &mut Canvas, x: f32, y :f32, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32, images: &GgezImages) -> Result<(), OhCrabVisualizerError> {    
     let tile_x = (x * tile_size) + grid_canvas_origin_x;
     let tile_y = (y * tile_size) + grid_canvas_origin_y;
-    let color = get_tile_color(&tile.tile_type);
+    let tile_rect_color = get_tile_color(&tile.tile_type);
     
     let tile_image = images.tile_images.get(&tile.tile_type);
-    if  /*tile_size >= CONTENT_TILE_SIZE_LIMIT + 10 as f32 &&*/ tile_image.is_some() {
-        let tile_image = tile_image.unwrap();
-        let x_scale = 1.0 / (tile_image.width() as f32 / tile_size);
-        let y_scale = 1.0 / (tile_image.height() as f32 / tile_size);
-        let draw_param = graphics::DrawParam::new()
-            .dest(Point2 { x: tile_x, y:tile_y})
-            .scale(Vector2 {x: x_scale, y: y_scale});
 
-        canvas.draw(tile_image, draw_param);
-        if tile_size >= CONTENT_TILE_SIZE_LIMIT {
-            //draw_tile_content_image(canvas, &tile.content, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, get_content_text_color_for_tile(t), images);
-            draw_tile_content_text(canvas, &tile.content, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, get_content_text_color_for_tile(&tile.tile_type));
-        }
-        Ok(())
-    }
-    else {
-        let color = get_tile_color(&tile.tile_type);
-        let res = graphics::Mesh::new_rectangle(
-            ctx,
-            graphics::DrawMode::fill(),
-            graphics::Rect::new(
-                tile_x,
-                tile_y,
-                tile_size,
-                tile_size,
-            ),
-            color
-        );
-        match res {
-            Ok(rect) => {
-                canvas.draw(&rect, graphics::DrawParam::default());
-                if tile_size >= CONTENT_TILE_SIZE_LIMIT {
-                    draw_tile_content_text(canvas, &tile.content, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, color);
+    let mut uses_tile_image = false;
+    match tile_image {
+        Some(tile_image) =>{
+            uses_tile_image = true;
+            let x_scale = 1.0 / (tile_image.width() as f32 / tile_size);
+            let y_scale = 1.0 / (tile_image.height() as f32 / tile_size);
+            let draw_param = graphics::DrawParam::new()
+                .dest(Point2 { x: tile_x, y:tile_y})
+                .scale(Vector2 {x: x_scale, y: y_scale});
+
+            canvas.draw(tile_image, draw_param);
+        },
+        None => {
+            
+            let res = graphics::Mesh::new_rectangle(
+                ctx,
+                graphics::DrawMode::fill(),
+                graphics::Rect::new(
+                    tile_x,
+                    tile_y,
+                    tile_size,
+                    tile_size,
+                ),
+                tile_rect_color
+            );
+            match res {
+                Ok(rect) => {
+                    canvas.draw(&rect, graphics::DrawParam::default());
                 }
-                Ok(())
+                Err(error) => { return Err(OhCrabVisualizerError::GraphicsLibraryError(error)); }
             }
-            Err(error) => Err(OhCrabVisualizerError::GraphicsLibraryError(error))
         }
     }
+
+    // tile content
+    if tile_size >= CONTENT_TILE_SIZE_LIMIT {
+        let content_text_color = if uses_tile_image { get_content_text_color_for_tile_image(&tile.tile_type) } else { invert_color(&tile_rect_color) };
+        let content_image = images.content_images.get(&content_to_content_type(&tile.content));
+        match content_image {
+            Some(content_image) => {
+                draw_tile_content_image(canvas, &tile.content, content_image, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, content_text_color);
+            }
+            None => {
+                draw_tile_content_text(canvas, &tile.content, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, content_text_color);
+            }
+        }
+    }
+    Ok(())
 }
 
-fn draw_tile_content_image(canvas: &mut Canvas, content: &Content, x: f32, y:f32, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32, color: Color, images: &GgezImages){
-    let image = images.content_images.get(&content_to_content_type(content));
-    if let Some(content_image) = image {
-        let content_x = ((x + 0.05) * tile_size) + grid_canvas_origin_x;
-        let content_y = ((y + 0.6) * tile_size) + grid_canvas_origin_y;
+fn draw_tile_content_image(canvas: &mut Canvas, content: &Content, content_image: &Image, x: f32, y:f32, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32, text_color: Color){
+    let content_x = ((x + 0.05) * tile_size) + grid_canvas_origin_x;
+    let content_y = ((y + 0.55) * tile_size) + grid_canvas_origin_y;
+    let x_scale = (1.0 / (content_image.width() as f32 / tile_size)) * 0.4;
+    let y_scale = (1.0 / (content_image.height() as f32 / tile_size)) * 0.4;
+    let draw_param = graphics::DrawParam::new()
+        .dest(Point2 { x: content_x, y:content_y})
+        .scale(Vector2 {x: x_scale, y: y_scale});
 
-        let x_scale = (1.0 / (content_image.width() as f32 / tile_size)) * 0.4;
-        let y_scale = (1.0 / (content_image.height() as f32 / tile_size)) * 0.4;
-        let draw_param = graphics::DrawParam::new()
-            .dest(Point2 { x: content_x, y:content_y})
-            .scale(Vector2 {x: x_scale, y: y_scale});
+    canvas.draw(content_image, draw_param);
 
-        canvas.draw(content_image, draw_param);
-    }
-    else {
-        draw_tile_content_text(canvas, content, x, y, tile_size, grid_canvas_origin_x, grid_canvas_origin_y, color)
-    }
+    // content amount
+    let text_size = tile_size * 0.18;
+    let amount_string = get_content_amount_string(content);
+    let text_x = content_x + (tile_size * 0.4);
+    let text_y = content_y + (tile_size * 0.1);
+    draw_text(canvas,  text_x, text_y, text_color, text_size, amount_string)
 } 
 
 fn draw_tile_content_text(canvas: &mut Canvas, content: &Content, x: f32, y:f32, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32, color: Color) {
     let text_x = ((x + 0.05) * tile_size) + grid_canvas_origin_x;
     let text_y: f32 = ((y + 0.75) * tile_size) + grid_canvas_origin_y;
     let text_size = tile_size * 0.18;
-    //let text_color = invert_color(&color);
 
     draw_content(canvas, content, text_x, text_y, text_size, color);
 }
@@ -227,19 +231,6 @@ pub fn draw_content(canvas: &mut Canvas, content: &Content, x: f32, y:f32, size:
     let text = get_content_string(content);
     draw_text(canvas, x, y, color, size, text)
 }
-
-// pub(super) fn draw_backpack(backpack: &HashMap<Content, usize>, canvas: &mut Canvas, tile_size: f32, world_dimension:usize) {
-//     let x_backpack = (tile_size * world_dimension as f32) + (tile_size) + 200.0;
-//     let mut y_backpack = tile_size;
-//     let text_size = tile_size * 0.2;
-//     let text_color = Color::WHITE;
-
-//     draw_text(canvas, x_backpack, y_backpack - text_size * 1.1, text_color, text_size, "BACKPACK:".to_owned());
-//     for (content, amount) in backpack {
-//         draw_text(canvas, x_backpack, y_backpack, text_color, text_size, format!("{}({})", content.to_string(), amount));
-//         y_backpack += text_size * 1.1;
-//     }
-// }
 
 fn draw_robot(robot_position: &Coord, ctx: &mut Context, canvas: &mut Canvas, tile_size: f32, grid_canvas_origin_x: f32, grid_canvas_origin_y: f32, images: &GgezImages) -> Result<(), OhCrabVisualizerError> {
     let x = robot_position.x;
@@ -278,8 +269,6 @@ fn draw_robot(robot_position: &Coord, ctx: &mut Context, canvas: &mut Canvas, ti
             Err(error) => Err(OhCrabVisualizerError::GraphicsLibraryError(error))
         }
     }
-
-
 }
 
 pub(super) fn draw_text(canvas: &mut Canvas, x: f32, y:f32, color: Color, size:f32, text: String ) {
@@ -296,6 +285,19 @@ pub(super) fn draw_text(canvas: &mut Canvas, x: f32, y:f32, color: Color, size:f
     dest_point,
     );
 }
+
+// pub(super) fn draw_backpack(backpack: &HashMap<Content, usize>, canvas: &mut Canvas, tile_size: f32, world_dimension:usize) {
+//     let x_backpack = (tile_size * world_dimension as f32) + (tile_size) + 200.0;
+//     let mut y_backpack = tile_size;
+//     let text_size = tile_size * 0.2;
+//     let text_color = Color::WHITE;
+
+//     draw_text(canvas, x_backpack, y_backpack - text_size * 1.1, text_color, text_size, "BACKPACK:".to_owned());
+//     for (content, amount) in backpack {
+//         draw_text(canvas, x_backpack, y_backpack, text_color, text_size, format!("{}({})", content.to_string(), amount));
+//         y_backpack += text_size * 1.1;
+//     }
+// }
 
 fn get_tile_color(tile_type: &TileType) -> Color {
     match tile_type {
@@ -334,11 +336,32 @@ fn get_content_string(content: &Content) -> String {
     }
 }
 
-fn get_content_text_color_for_tile(tile_type: &TileType) -> Color {
+fn get_content_amount_string(content: &Content) -> String {
+    match content {
+        Content::Rock(val) => format!("x {}", val),
+        Content::Tree(val) => format!("x {}", val),
+        Content::Garbage(val) => format!("x {}", val),
+        Content::Fire => String::from(""),
+        Content::Coin(val) => format!("x {}", val),
+        Content::Bin(val) => format!("({}..{})", val.start, val.end),
+        Content::Crate(val) => format!("({}..{})", val.start, val.end),
+        Content::Bank(val) => format!("({}..{})", val.start, val.end),
+        Content::Water(val) => format!("x {}", val),
+        Content::Market(val) => format!("x {}", val),
+        Content::Fish(val) => format!("x {}", val),
+        Content::Building => String::from(""),
+        Content::Bush(val) => format!("x {}", val),
+        Content::JollyBlock(val) => format!("x {}", val),
+        Content::Scarecrow => String::from(""),
+        Content::None => String::from(""),
+    }
+}
+
+fn get_content_text_color_for_tile_image(tile_type: &TileType) -> Color {
     match tile_type {
         TileType::DeepWater => Color::WHITE,
         TileType::ShallowWater => Color::WHITE,
-        TileType::Sand => Color::BLUE,
+        TileType::Sand => Color::WHITE,
         TileType::Grass => Color::WHITE,
         TileType::Street => Color::WHITE,
         TileType::Hill => Color::BLUE,
