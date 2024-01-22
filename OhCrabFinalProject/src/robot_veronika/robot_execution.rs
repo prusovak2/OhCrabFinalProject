@@ -4,7 +4,7 @@ use robotics_lib::world::tile::Content;
 
 pub fn run_distribution_robot(){
     let robot_factory = DistributorRobotFactory::new(vec![Content::Rock(1).index(), Content::Fish(1).index(), Content::Tree(1).index()]);
-    let world_generator = crate::world_gen_utils::load_or_generate_world(40, 420);
+    let world_generator = crate::world_gen_utils::load_or_generate_world(128, 420);
 
     //let config = OhCrabVisualizerConfig::new(RunMode::Interactive, false);
     let config = OhCrabVisualizerConfig::new(RunMode::NonInteractive(500), false);

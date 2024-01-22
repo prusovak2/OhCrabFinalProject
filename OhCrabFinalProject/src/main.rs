@@ -1,13 +1,16 @@
 use std::env;
 
-use visualizer::oh_crab_visualizer::examples::example::{visualizer_nonteractive, visualizer_interactive, visualizer_smaller};
+use visualizer::oh_crab_visualizer::examples::example::{visualizer_nonteractive, visualizer_interactive, visualizer_smaller,
+                                                        distribution_big_simulate, distribution_bigger_viz, distribution_small_viz};
 
 #[derive(Debug)]
 enum RunMode {
     VisualizerInteractive,
     VisualizerSimulate,
     VisualizerSmaller,
-    Veronika,
+    DistributionSmall,
+    DistributionBig,
+    DistributionSimulation,
     Tanya,
 }
 
@@ -17,7 +20,9 @@ impl RunMode {
             "visualizer-interactive" => Some(RunMode::VisualizerInteractive),
             "visualizer-simulate" => Some(RunMode::VisualizerSimulate),
             "visualizer-smaller" => Some(RunMode::VisualizerSmaller),
-            "veronika" => Some(RunMode::Veronika),
+            "distribution-small" => Some(RunMode::DistributionSmall),
+            "distribution-big" => Some(RunMode::DistributionBig),
+            "distribution-simulation" => Some(RunMode::DistributionSimulation),
             "tanya" => Some(RunMode::Tanya),
             _ => None,
         }
@@ -43,8 +48,14 @@ fn main() {
         Some(RunMode::VisualizerSmaller) => {
             visualizer_smaller();
         }
-        Some(RunMode::Veronika) => {
-            println!("Run your example here.")
+        Some(RunMode::DistributionSmall) => {
+            distribution_small_viz();
+        }
+        Some(RunMode::DistributionBig) => {
+            distribution_bigger_viz();
+        }
+        Some(RunMode::DistributionSimulation) => {
+            distribution_big_simulate();
         }
         Some(RunMode::Tanya) => {
             println!("Run your example here.")
