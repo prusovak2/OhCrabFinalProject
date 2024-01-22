@@ -101,7 +101,9 @@ impl StorageInfo{
     pub fn get_market_index_mut(&mut self) -> &mut usize {
         &mut self.market_index
     }
-
+    pub fn get_market_index(&self) -> usize {
+        self.market_index
+    }
     pub fn set_market_index(&mut self, market_index: usize) {
         self.market_index = market_index;
     }

@@ -29,7 +29,7 @@ pub struct DistributorRobot{
     markets: Vec<Position>,
     banks: Vec<Position>,
     /// Indexes into which markets should the content go
-    markets_indexes: VecDeque<usize>,
+    //markets_indexes: VecDeque<usize>,
     visualizer_event_listener: VisualizerEventListener
 }
 
@@ -42,13 +42,6 @@ impl DistributorRobot{
             println!("Tile at position 0, 0 is {:?}", robot_world[0][0].clone());
             self.world_size = robot_world.len();
         }
-        // for dir in Direction::iter() {
-        //     println!("\nDirection is {:?}", dir);
-        //     let view_output = one_direction_view(self, world, dir, self.world_size)?;
-        //     println!("View output len is {:?}", view_output.len());
-        //     //println!("\nView is: {:?}\n", view_output);
-        //     println!("Robots energy is {}", self.get_energy().get_energy_level());
-        // }
 
         let view_output = VisualizableInterfaces::one_direction_view(self, world, Direction::Up, self.world_size)?;
         let furthest_top_coordinates = &view_output[view_output.len()-1];
@@ -193,17 +186,21 @@ impl DistributorRobot{
         self.partitioning_solved = true;
         //self.markets_indexes = best_solution;
 
-        //let targets = self.targets.clone();
+        let mut new_targets = BinaryHeap::new();
 
         for item in best_solution{
-            self.markets_indexes.push_back(item);
+            //self.markets_indexes.push_back(item);
+            let mut target = self.targets.pop().unwrap();
+            target.set_market_index(item);
+            new_targets.push(target);
         }
+        self.targets = new_targets;
     }
 
     pub fn deliver_content(&mut self, world: &mut robotics_lib::world::World) {
         while let Some(target) = self.targets.pop() {
             println!("I am distributing the content!");
-            let market_index: usize = self.markets_indexes.pop_front().unwrap();
+            //let market_index: usize = self.markets_indexes.pop_front().unwrap();
             // go to collect the item first
             let mut path_to_target = CollectTool::return_path_to_coordinates(self,
                                                                              world,
@@ -214,7 +211,7 @@ impl DistributorRobot{
                 let _ = VisualizableInterfaces::go(self, world, direction);
             }
             let _ = VisualizableInterfaces::destroy(self, world, last_step.unwrap());
-            let maker_position = &self.markets[market_index];
+            let maker_position = &self.markets[target.get_market_index()];
             let mut path_to_market = CollectTool::return_path_to_coordinates(self,
                                                                              world,
                                                                              (maker_position.get_row(),
@@ -341,14 +338,14 @@ pub struct DistributorRobotFactory {
     targets: BinaryHeap<StorageInfo>,
     markets: Vec<Position>,
     banks: Vec<Position>,
-    markets_indexes: VecDeque<usize>,
+    //markets_indexes: VecDeque<usize>,
 }
 
 impl DistributorRobotFactory {
     pub fn new(desired_content: Vec<usize>) -> DistributorRobotFactory {
         DistributorRobotFactory{desired_content, exploration_finished: false,
             partitioning_solved: false, world_size: 0,
-            targets: BinaryHeap::new(), markets: Vec::new(), banks: Vec::new(), markets_indexes: VecDeque::new()}
+            targets: BinaryHeap::new(), markets: Vec::new(), banks: Vec::new()}
     }
 }
 
@@ -362,7 +359,7 @@ impl RobotCreator for DistributorRobotFactory {
             targets: self.targets.clone(),
             markets: self.markets.clone(),
             banks: self.banks.clone(),
-            markets_indexes: self.markets_indexes.clone(),
+            //markets_indexes: self.markets_indexes.clone(),
             visualizer_event_listener: data_sender };
         Box::new(distributor_robot)
     }
