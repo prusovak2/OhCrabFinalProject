@@ -243,8 +243,8 @@ fn draw_robot(robot_position: &Coord, ctx: &mut Context, canvas: &mut Canvas, ti
     let x = robot_position.x;
     let y = robot_position.y;
     if  tile_size >= CONTENT_TILE_SIZE_LIMIT + 10 as f32 && images.robot_image.is_some() {
-        let center_x = ((x as f32 + 0.1) * tile_size) + grid_canvas_origin_x;
-        let center_y = ((y as f32 + 0.1) * tile_size) + grid_canvas_origin_y;
+        let center_x = ((x as f32 + 0.3) * tile_size) + grid_canvas_origin_x;
+        let center_y = ((y as f32 + 0.0) * tile_size) + grid_canvas_origin_y;
         let robot_image: &Image = images.robot_image.as_ref().unwrap();
         let x_scale = (1.0 / (robot_image.width() as f32 / tile_size)) * 0.6;
         let y_scale = (1.0 / (robot_image.height() as f32 / tile_size)) * 0.6;
