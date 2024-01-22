@@ -276,7 +276,7 @@ impl DistributorRobot{
             for direction in path_to_target {
                 let _ = VisualizableInterfaces::go(self, world, direction);
             }
-            let _ = VisualizableInterfaces::destroy(self, world, last_step.unwrap());
+            let _ = VisualizableInterfaces::destroy(self, world, last_step.unwrap_or(Direction::Up));
             let maker_position = &self.markets[target.get_market_index()];
             let mut path_to_market = CollectTool::return_path_to_coordinates(self,
                                                                              world,
