@@ -67,7 +67,7 @@ pub struct StorageInfo{
 
 impl StorageInfo{
     pub fn new(position: Position, content: usize, quantity: usize) -> Self {
-        let coefficient = match(content){
+        let coefficient = match content {
             // coefficients based on the logic from robotic_lib
             0 => 1,
             1 => 2,

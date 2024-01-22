@@ -309,7 +309,7 @@ impl CollectTool {
 
     /// Function checks tiles around robot and returns direction to the cheapest tile
     /// to get move to, so it can collect the content
-    fn get_cheapest_walkable_around(
+    pub(crate) fn get_cheapest_walkable_around(
         robot: &mut impl Runnable,
         world: &mut World,
         search_content: &Content

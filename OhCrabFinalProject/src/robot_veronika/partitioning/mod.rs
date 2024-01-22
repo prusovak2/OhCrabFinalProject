@@ -196,9 +196,6 @@ impl PartitioningProblem {
             }
             if generation % 100 == 0 {
                 info!("Generation: {}, min objective: {:?}", generation, objective.iter().min().unwrap());
-                //let best_individual = population[fitness.iter().position_max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()].clone();
-                //let best_objective = self.objective(&best_individual);
-                //println!("Objective of the best individual in generation {}, is {}", generation, best_objective);
             }
             let mut mating_pool = self.tournament_selection(population, &fitness);
             let new_population : Vec<Vec<usize>> = self.mate(&mut mating_pool);
@@ -224,9 +221,6 @@ impl PartitioningProblem {
             }
             let best_individual = population[fitness.iter().position_max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()].clone();
             best_individuals.push(best_individual.clone());
-            println!("Run: {}", run);
-            println!("Objective best individual: {:?}", self.objective(&best_individual));
-            println!("Bin Weights: {:?}", self.bin_weights(&best_individual));
             info!("Run: {}:", run);
             info!("Objective best individual: {:?}", self.objective(&best_individual));
             info!("Bin Weights: {:?}", self.bin_weights(&best_individual));
