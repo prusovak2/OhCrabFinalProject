@@ -1,4 +1,11 @@
 # OhCrab presentation notes
+* our crates published in university registry, with all documentation necessary
+
+## Collection tool
+* allows user to collect specific amount of content, if the collection meets given energy criteria
+* uses A\* path finding algorithm, Manhattan distance
+* if the target is on given Tile, it moves the robot on the cheapest tile around
+* returns error if not meeting energy criterie, backpack is fule, given content is not destroyable or it is not found in the world
 
 ## Weather tool
 * predicts weather
@@ -80,3 +87,13 @@
         * to ensure that the world map gets send to the visualizer before the first robots action, visualizer wraps robot in its own `VisualizableRobot` before passing it to `robotic-lib` `Runner`.
             * the original idea was to use this trick to intercept world `events` as well, but events get issued from interfaces invocations on the robot instance that invoked the interface (not on the robot instance that was passed to the `Runner` when the `Runner`) was created. Due to that `VisualizableRobot` wrapper can only be used to intercept invoations of `robot.update` and cannot be used to intercept `robot.handle_event`. User is requiered to invoke `visualizer_event_listener.handle_event` method from `handle_event` method of their robot.
         * `VisualizableInterfaces` - to intercept interaface invocations for `rizzler` and `history_cache`. 
+
+## Distribution Robot
+### Overall idea and motivation
+* Aims to collect Trees, Rocks and Fishes
+* Distribute them into all markets in the world the most equal way
+* Evolutionary algorithm to solve partitioning problem
+* 3 different phases:
+    * exploration phase
+    * algorithm solving phase
+    * distribution phase
